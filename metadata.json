@@ -1,0 +1,6 @@
+{
+  "name": "Jai Shiv BMS",
+  "description": "Comprehensive Textile Business Management System with Inventory, Orders, Invoicing, Ledger, Quality Check, and Analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

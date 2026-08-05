@@ -1,0 +1,234 @@
+@import "tailwindcss";
+
+:root {
+  /* Dark Theme Colors (Default) */
+  --bg-app: #0f172a;
+  --bg-card: #1e293b;
+  --bg-sidebar: #111827;
+  --bg-header: #1e293b;
+  --bg-element: #1e293b;
+  --bg-input: #1e293b;
+  --bg-table-header: #334155;
+  --bg-hover-row: #293548;
+
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --primary-active: #1d4ed8;
+  --primary-btn: #3b82f6;
+  --primary-btn-hover: #2563eb;
+  --primary-btn-text: #ffffff;
+
+  --text-main: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --text-white: #f8fafc;
+
+  --border-w10: #334155;
+  --border-w5: rgba(51, 65, 85, 0.5);
+  --border-w15: #475569;
+
+  --scrollbar-track: #0f172a;
+  --scrollbar-thumb: #334155;
+
+  --status-success: #22c55e;
+  --status-warning: #f59e0b;
+  --status-danger: #ef4444;
+  --status-info: #0ea5e9;
+}
+
+html.light {
+  /* Light Theme Colors */
+  --bg-app: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-sidebar: #ffffff;
+  --bg-header: #ffffff;
+  --bg-element: #f1f5f9;
+  --bg-input: #ffffff;
+  --bg-table-header: #f1f5f9;
+  --bg-hover-row: #eff6ff;
+
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-active: #1e40af;
+  --primary-btn: #2563eb;
+  --primary-btn-hover: #1d4ed8;
+  --primary-btn-text: #ffffff;
+
+  --text-main: #0f172a;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --text-white: #0f172a;
+
+  --border-w10: #cbd5e1;
+  --border-w5: rgba(203, 213, 225, 0.6);
+  --border-w15: #94a3b8;
+
+  --scrollbar-track: #f8fafc;
+  --scrollbar-thumb: #cbd5e1;
+
+  --status-success: #22c55e;
+  --status-warning: #f59e0b;
+  --status-danger: #ef4444;
+  --status-info: #0ea5e9;
+}
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    background-color: var(--bg-app) !important;
+    color: var(--text-main) !important;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  .font-serif {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+    transition: background 0.2s ease;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 9999px;
+    transition: background 0.2s ease;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(37, 99, 235, 0.4);
+  }
+}
+
+/* Centralized theme overrides & legacy utility classes mapping */
+@layer utilities {
+  .bg-\[\#0a0a0a\] {
+    background-color: var(--bg-app) !important;
+  }
+  .bg-\[\#0a0a0a\]\/50 {
+    background-color: color-mix(in srgb, var(--bg-app) 50%, transparent) !important;
+  }
+  .bg-\[\#141414\] {
+    background-color: var(--bg-card) !important;
+  }
+  .bg-\[\#141414\]\/90 {
+    background-color: color-mix(in srgb, var(--bg-card) 90%, transparent) !important;
+  }
+  .bg-\[\#141414\]\/50 {
+    background-color: color-mix(in srgb, var(--bg-card) 50%, transparent) !important;
+  }
+  .bg-\[\#1a1a1a\] {
+    background-color: var(--bg-element) !important;
+  }
+  .bg-slate-950 {
+    background-color: var(--bg-app) !important;
+  }
+
+  /* Legacy orange utility class mappings to Enterprise Blue */
+  .bg-\[\#f27d26\] {
+    background-color: var(--primary-btn) !important;
+    color: var(--primary-btn-text) !important;
+  }
+  .hover\:bg-\[\#d96a1a\]:hover,
+  .hover\:bg-\[\#e06c17\]:hover {
+    background-color: var(--primary-btn-hover) !important;
+  }
+  .text-\[\#f27d26\] {
+    color: var(--primary) !important;
+  }
+  .border-\[\#f27d26\] {
+    border-color: var(--primary) !important;
+  }
+
+  .text-\[\#d1d1d1\] {
+    color: var(--text-secondary) !important;
+  }
+  .text-white {
+    color: var(--text-main) !important;
+  }
+  .text-slate-100 {
+    color: var(--text-main) !important;
+  }
+
+  /* Border color utilities mapping */
+  .border-white\/10 {
+    border-color: var(--border-w10) !important;
+  }
+  .border-white\/5 {
+    border-color: var(--border-w5) !important;
+  }
+  .border-white\/15 {
+    border-color: var(--border-w15) !important;
+  }
+
+  /* Ring and divider utilities mapping */
+  .ring-white\/10 {
+    box-shadow: 0 0 0 1px var(--border-w10) !important;
+  }
+  .ring-white\/15 {
+    box-shadow: 0 0 0 1px var(--border-w15) !important;
+  }
+  .ring-white\/5 {
+    box-shadow: 0 0 0 1px var(--border-w5) !important;
+  }
+  .ring-\[\#0a0a0a\] {
+    box-shadow: 0 0 0 2px var(--bg-app) !important;
+  }
+  
+  .divide-white\/5 > :not([hidden]) ~ :not([hidden]) {
+    border-color: var(--border-w5) !important;
+  }
+  .divide-white\/10 > :not([hidden]) ~ :not([hidden]) {
+    border-color: var(--border-w10) !important;
+  }
+
+  /* Hover overrides */
+  .hover\:bg-white\/5:hover {
+    background-color: var(--border-w5) !important;
+  }
+  .hover\:bg-white\/10:hover {
+    background-color: var(--border-w10) !important;
+  }
+  .hover\:bg-\[\#1a1a1a\]:hover {
+    background-color: var(--bg-element) !important;
+  }
+  .hover\:text-white:hover {
+    color: var(--text-main) !important;
+  }
+
+  /* Text Opacity overrides */
+  .text-\[\#d1d1d1\]\/30 {
+    color: color-mix(in srgb, var(--text-secondary) 30%, transparent) !important;
+  }
+  .text-\[\#d1d1d1\]\/40 {
+    color: color-mix(in srgb, var(--text-secondary) 40%, transparent) !important;
+  }
+  .text-\[\#d1d1d1\]\/50 {
+    color: color-mix(in srgb, var(--text-secondary) 50%, transparent) !important;
+  }
+  .text-\[\#d1d1d1\]\/60 {
+    color: color-mix(in srgb, var(--text-secondary) 60%, transparent) !important;
+  }
+  .text-\[\#d1d1d1\]\/70 {
+    color: color-mix(in srgb, var(--text-secondary) 70%, transparent) !important;
+  }
+  .placeholder-\[\#d1d1d1\]\/40::placeholder {
+    color: color-mix(in srgb, var(--text-secondary) 40%, transparent) !important;
+  }
+
+  .text-white\/40 {
+    color: color-mix(in srgb, var(--text-main) 40%, transparent) !important;
+  }
+  .text-white\/50 {
+    color: color-mix(in srgb, var(--text-main) 50%, transparent) !important;
+  }
+  .text-white\/60 {
+    color: color-mix(in srgb, var(--text-main) 60%, transparent) !important;
+  }
+  .text-white\/70 {
+    color: color-mix(in srgb, var(--text-main) 70%, transparent) !important;
+  }
+}
