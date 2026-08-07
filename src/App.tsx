@@ -25,6 +25,13 @@ import {
   ROLE_PERMISSIONS
 } from './types';
 
+
+import {
+  getProducts,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+} from "./services/products";
 // ---------------------------------------------------------------------------
 // Inner app — only rendered when the user is authenticated
 // ---------------------------------------------------------------------------
@@ -137,6 +144,19 @@ const [payments, setPayments] = useState<Payment[]>([]);
 const [ledgerEntries, setLedgerEntries] = useState<LedgerEntry[]>([]);
 const [invoices, setInvoices] = useState<Invoice[]>([]);
 
+const loadProducts = async () => {
+  try {
+    const data = await getProducts();
+    setProducts(data);
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+useEffect(() => {
+  loadProducts();
+}, []);
+
   // Payment & Invoice synchronization helper
   const syncInvoicesWithPayments = (currentInvoices: Invoice[], currentPayments: Payment[]): Invoice[] => {
     return currentInvoices.map((inv) => {
@@ -163,18 +183,44 @@ const [invoices, setInvoices] = useState<Invoice[]>([]);
     });
   };
 
-  // Product Catalog Handlers
-  const handleAddProduct = (newProduct: Product) => {
-    setProducts([newProduct, ...products]);
-  };
+const handleAddProduct = async (newProduct: Product) => {
+  try {
+    await createProduct(newProduct);
+    await loadProducts();
+    console.log("Products reloaded");
+  } catch (err) {
+    console.error(err);
+  }
+};
 
-  const handleUpdateProduct = (updatedProduct: Product) => {
-    setProducts(products.map(p => (p.id === updatedProduct.id ? updatedProduct : p)));
-  };
 
-  const handleDeleteProduct = (productId: string) => {
-    setProducts(products.filter(p => p.id !== productId));
-  };
+const handleUpdateProduct = async (
+  updatedProduct: Product
+) => {
+  try {
+    await updateProduct(
+      updatedProduct.id,
+      updatedProduct
+    );
+
+    await loadProducts();
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+const handleDeleteProduct = async (
+  productId: string
+) => {
+  try {
+    await deleteProduct(productId);
+
+    await loadProducts();
+  } catch (err) {
+    console.error(err);
+  }
+};
+
 
   // Payment Handlers with Automatic Invoice Sync
   const handleAddPayment = (newPayment: Payment) => {
@@ -231,6 +277,7 @@ const [invoices, setInvoices] = useState<Invoice[]>([]);
     if (restoredData.invoices) {
       setInvoices(syncInvoicesWithPayments(restoredData.invoices, restoredData.payments || payments));
     }
+    
   };
 
 const handleResetToDefaults = () => {

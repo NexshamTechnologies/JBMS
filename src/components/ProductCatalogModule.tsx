@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from "react";
 import { ConfirmDialog } from './ConfirmDialog';
 import { useToast } from './ToastProvider';
 import {
@@ -10,15 +10,21 @@ import {
   Trash2
 } from 'lucide-react';
 import { Product } from '../types';
-
+import {
+    getProducts,
+    createProduct,
+    updateProduct,
+    deleteProduct
+} from "../services/products";
 interface ProductCatalogModuleProps {
   products: Product[];
-  onAddProduct: (newProduct: Product) => void;
-  onUpdateProduct: (updatedProduct: Product) => void;
-  onDeleteProduct: (productId: string) => void;
+  onAddProduct: (newProduct: Product) => Promise<void>;
+  onUpdateProduct: (updatedProduct: Product) => Promise<void>;
+  onDeleteProduct: (productId: string) => Promise<void>;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
 }
+
 
 export const ProductCatalogModule: React.FC<ProductCatalogModuleProps> = ({
   products,
@@ -29,6 +35,7 @@ export const ProductCatalogModule: React.FC<ProductCatalogModuleProps> = ({
   setSearchTerm,
 }) => {
   // UI state
+  
   const [isOpenModal, setIsOpenModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   // Confirmation dialog state
@@ -85,26 +92,37 @@ export const ProductCatalogModule: React.FC<ProductCatalogModuleProps> = ({
     setIsOpenModal(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const base: Product = {
-      id: editingProduct ? editingProduct.id : `PRD-${Date.now()}`,
-      name: form.name,
-      category: form.category || undefined,
-      fabricType: form.fabricType || undefined,
-      unit: form.unit,
-      hsnCode: form.hsnCode,
-      gstRate: Number(form.gstRate),
-      sellingPrice: Number(form.sellingPrice)
-    };
-    if (editingProduct) {
-      onUpdateProduct({ ...editingProduct, ...base });
-    } else {
-      onAddProduct(base);
-    }
-    setIsOpenModal(false);
+
+
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  const base: Product = {
+    id: editingProduct ? editingProduct.id : "",
+    name: form.name,
+    category: form.category || undefined,
+    fabricType: form.fabricType || undefined,
+    unit: form.unit,
+    hsnCode: form.hsnCode,
+    gstRate: Number(form.gstRate),
+    sellingPrice: Number(form.sellingPrice),
   };
 
+  console.log("Submitting Product:", base);
+
+  try {
+    if (editingProduct) {
+      await onUpdateProduct({ ...editingProduct, ...base });
+    } else {
+      await onAddProduct(base);
+      setIsOpenModal(false);
+    }
+    console.log("Success");
+    setIsOpenModal(false);
+  } catch (err) {
+    console.error("Submit Error:", err);
+  }
+};
   return (
     <div className="space-y-6">
       {/* Header */}
