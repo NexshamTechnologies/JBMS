@@ -33,9 +33,9 @@ export const Header: React.FC<HeaderProps> = ({
   const profileRef = useRef<HTMLDivElement>(null);
 
 const displayName =
-  user?.fullName ||
-  user?.email?.split('@')[0] ||
-  'User';
+  user?.profile.name ||
+  user?.user.email?.split("@")[0] ||
+  "User";
 
   const initials: string = displayName
     .split(' ')
@@ -174,7 +174,7 @@ const displayName =
                 {/* User info strip */}
                 <div className="px-4 py-3 border-b border-white/10">
                   <p className="text-xs font-bold text-white truncate">{displayName}</p>
-                  <p className="text-[11px] text-[#d1d1d1]/50 truncate mt-0.5">{user?.email}</p>
+                  <p className="text-[11px] text-[#d1d1d1]/50 truncate mt-0.5">{user?.user.email}</p>
                   <div className="mt-2 flex items-center gap-1.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[9px] font-extrabold px-2.5 py-1 rounded-full border border-blue-500/20 uppercase tracking-widest w-fit">
                     <ShieldCheck className="w-3 h-3 text-emerald-500" />
                     <span>Role: {userRole}</span>

@@ -2,27 +2,27 @@ import React, {
   createContext,
   useContext,
   useState,
-  useCallback,
+  useEffect,
   ReactNode,
-} from 'react';
+} from "react";
 
-import { UserRole } from '../types';
+import { User } from "@supabase/supabase-js";
+import { supabase } from "../lib/supabase";
+import { UserRole } from "../types";
 
-// ---------------------------------------------------------
-// FRONTEND-ONLY USER
-// Temporary authentication model.
-// Real authentication will be connected later.
-// ---------------------------------------------------------
-
-interface FrontendUser {
+interface Profile {
   id: string;
-  email: string;
-  fullName: string;
+  name: string;
   role: UserRole;
 }
 
-export interface AuthContextValue {
-  user: FrontendUser | null;
+interface AuthUser {
+  user: User;
+  profile: Profile;
+}
+
+interface AuthContextType {
+  user: AuthUser | null;
   loading: boolean;
   userRole: UserRole;
 
@@ -31,140 +31,219 @@ export interface AuthContextValue {
     password: string
   ) => Promise<{ error: Error | null }>;
 
+  signOut: () => Promise<void>;
+
   resetPassword: (
     email: string
   ) => Promise<{ error: Error | null }>;
-
-  signOut: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | undefined>(
+  undefined
+);
 
-// ---------------------------------------------------------
-// AUTH PROVIDER
-// ---------------------------------------------------------
+async function getProfile(
+  userId: string
+): Promise<Profile | null> {
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({
-  children,
-}) => {
-  const [user, setUser] = useState<FrontendUser | null>(null);
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", userId)
+    .single();
 
-  const loading = false;
+  if (error) {
+    console.error(error);
+    return null;
+  }
 
-  const userRole: UserRole = user?.role ?? 'Owner';
+  return data as Profile;
+}
 
-  // -------------------------------------------------------
-  // TEMPORARY FRONTEND LOGIN
-  //
-  // No database.
-  // No Supabase.
-  // Any non-empty email/password is accepted.
-  //
-  // Role selection:
-  // rahul@anything.com       -> Rahul
-  // accountant@anything.com  -> Accountant
-  // anything else            -> Owner
-  // -------------------------------------------------------
+export const AuthProvider: React.FC<{
+  children: ReactNode;
+}> = ({ children }) => {
 
-  const signIn = useCallback(
-    async (
-      email: string,
-      password: string
-    ): Promise<{ error: Error | null }> => {
-      if (!email.trim() || !password.trim()) {
-        return {
-          error: new Error('Please enter email and password.'),
-        };
-      }
+  const [user, setUser] =
+    useState<AuthUser | null>(null);
 
-      const prefix = email.split('@')[0].toLowerCase();
+  const [loading, setLoading] =
+    useState(true);
 
-      let role: UserRole = 'Owner';
+  const userRole: UserRole =
+    user?.profile.role ?? "Owner";
 
-      if (prefix === 'rahul') {
-        role = 'Rahul';
-      } else if (prefix === 'accountant') {
-        role = 'Accountant';
-      }
+  // ----------------------------
+  // LOGIN
+  // ----------------------------
 
-      const frontendUser: FrontendUser = {
-        id: `frontend-${Date.now()}`,
+  const signIn = async (
+    email: string,
+    password: string
+  ): Promise<{ error: Error | null }> => {
+
+    const { data, error } =
+      await supabase.auth.signInWithPassword({
         email,
-        fullName:
-          role === 'Rahul'
-            ? 'Rahul Chauhan'
-            : role === 'Accountant'
-            ? 'Accountant'
-            : 'Owner',
-        role,
-      };
+        password,
+      });
 
-      setUser(frontendUser);
+    if (error) {
+      return { error };
+    }
 
+    if (!data.user) {
       return {
-        error: null,
+        error: new Error("User not found."),
       };
-    },
-    []
-  );
+    }
 
-  // -------------------------------------------------------
-  // TEMPORARY PASSWORD RESET
-  // -------------------------------------------------------
+    const profile =
+      await getProfile(data.user.id);
 
-  const resetPassword = useCallback(
-    async (
-      email: string
-    ): Promise<{ error: Error | null }> => {
-      if (!email.trim()) {
-        return {
-          error: new Error('Please enter your email address.'),
-        };
+    if (!profile) {
+      return {
+        error: new Error(
+          "Profile not found."
+        ),
+      };
+    }
+
+    setUser({
+      user: data.user,
+      profile,
+    });
+
+    return {
+      error: null,
+    };
+  };
+
+  // ----------------------------
+  // LOGOUT
+  // ----------------------------
+
+  const signOut = async () => {
+
+    await supabase.auth.signOut();
+
+    setUser(null);
+
+  };
+
+  // ----------------------------
+  // RESET PASSWORD
+  // ----------------------------
+
+  const resetPassword = async (
+    email: string
+  ): Promise<{ error: Error | null }> => {
+
+    const { error } =
+      await supabase.auth.resetPasswordForEmail(
+        email
+      );
+
+    return { error };
+
+  };
+    // ----------------------------
+  // SESSION RESTORE
+  // ----------------------------
+
+  useEffect(() => {
+
+    const initialize = async () => {
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (session?.user) {
+
+        const profile =
+          await getProfile(session.user.id);
+
+        if (profile) {
+          setUser({
+            user: session.user,
+            profile,
+          });
+        }
+
       }
 
-      return {
-        error: null,
-      };
-    },
-    []
-  );
+      setLoading(false);
 
-  // -------------------------------------------------------
-  // LOGOUT
-  // -------------------------------------------------------
+    };
 
-  const signOut = useCallback(async () => {
-    setUser(null);
+    initialize();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+
+        if (session?.user) {
+
+          const profile =
+            await getProfile(session.user.id);
+
+          if (profile) {
+
+            setUser({
+              user: session.user,
+              profile,
+            });
+
+          }
+
+        } else {
+
+          setUser(null);
+
+        }
+
+      }
+    );
+
+    return () => {
+
+      subscription.unsubscribe();
+
+    };
+
   }, []);
-
-  return (
+    return (
     <AuthContext.Provider
       value={{
         user,
         loading,
         userRole,
         signIn,
-        resetPassword,
         signOut,
+        resetPassword,
       }}
     >
       {children}
     </AuthContext.Provider>
   );
+
 };
 
-// ---------------------------------------------------------
-// AUTH HOOK
-// ---------------------------------------------------------
+export function useAuth(): AuthContextType {
 
-export const useAuth = (): AuthContextValue => {
-  const context = useContext(AuthContext);
+  const context =
+    useContext(AuthContext);
 
   if (!context) {
+
     throw new Error(
-      'useAuth must be used inside <AuthProvider>'
+      "useAuth must be used inside AuthProvider"
     );
+
   }
 
   return context;
-};
+
+}
