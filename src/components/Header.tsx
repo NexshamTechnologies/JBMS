@@ -7,12 +7,11 @@ import {
   ChevronDown,
   Sun,
   Moon,
-  LogOut,
+  LogOut,    
   User,
   KeyRound
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-
 interface HeaderProps {
   searchTerm: string;
   setSearchTerm: (term: string) => void;
