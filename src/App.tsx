@@ -32,6 +32,16 @@ import {
   updateProduct,
   deleteProduct,
 } from "./services/products";
+
+
+import {
+  getCustomers,
+  createCustomer,
+  updateCustomer,
+  deleteCustomer,
+} from "./services/customers";
+
+
 // ---------------------------------------------------------------------------
 // Inner app — only rendered when the user is authenticated
 // ---------------------------------------------------------------------------
@@ -115,6 +125,15 @@ function App() {
     return 'dark';
   });
 
+const loadCustomers = async () => {
+  try {
+    const data = await getCustomers();
+    setParties(data);
+  } catch (err) {
+    console.error(err);
+  }
+};
+
   const toggleTheme = () => {
     setTheme((prev) => {
       const next = prev === 'dark' ? 'light' : 'dark';
@@ -155,6 +174,7 @@ const loadProducts = async () => {
 
 useEffect(() => {
   loadProducts();
+   loadCustomers();
 }, []);
 
   // Payment & Invoice synchronization helper
@@ -248,17 +268,32 @@ const handleDeleteProduct = async (
   };
 
   // Party Handlers (Customers)
-  const handleAddParty = (newParty: Party) => {
-    setParties([...parties, newParty]);
-  };
+const handleAddParty = async (newParty: Party) => {
+  try {
+    await createCustomer(newParty);
+    await loadCustomers();
+  } catch (err) {
+    console.error(err);
+  }
+};
 
-  const handleUpdateParty = (updatedParty: Party) => {
-    setParties(parties.map(p => (p.id === updatedParty.id ? updatedParty : p)));
-  };
+const handleUpdateParty = async (updatedParty: Party) => {
+  try {
+    await updateCustomer(updatedParty.id, updatedParty);
+    await loadCustomers();
+  } catch (err) {
+    console.error(err);
+  }
+};
 
-  const handleDeleteParty = (partyId: string) => {
-    setParties(parties.filter(p => p.id !== partyId));
-  };
+const handleDeleteParty = async (partyId: string) => {
+  try {
+    await deleteCustomer(partyId);
+    await loadCustomers();
+  } catch (err) {
+    console.error(err);
+  }
+};
 
   const handleToggleBlock = (partyId: string) => {
     setParties(

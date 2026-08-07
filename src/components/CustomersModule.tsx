@@ -15,9 +15,9 @@ import { Party } from '../types';
 
 interface CustomersModuleProps {
   parties: Party[];
-  onAddParty: (newParty: Party) => void;
-  onUpdateParty: (updatedParty: Party) => void;
-  onDeleteParty: (partyId: string) => void;
+onAddParty: (newParty: Party) => Promise<void>;
+onUpdateParty: (updatedParty: Party) => Promise<void>;
+onDeleteParty: (partyId: string) => Promise<void>;
   onToggleBlock: (partyId: string) => void;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
@@ -84,10 +84,12 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
     setIsOpenModal(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+const handleSubmit = async (
+    e: React.FormEvent
+) => {
     e.preventDefault();
     const base = {
-      id: editingParty ? editingParty.id : `P-${Date.now()}`,
+      id: editingParty ? editingParty.id : "",
       name: form.name,
       code: `CUST-${Date.now()}`,
       type: 'Customer' as const,
@@ -101,9 +103,9 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
       address: form.address
     } as Party;
     if (editingParty) {
-      onUpdateParty({ ...editingParty, ...base } as Party);
+      await onUpdateParty({ ...editingParty, ...base } as Party);
     } else {
-      onAddParty(base);
+      await onAddParty(base);
     }
     setIsOpenModal(false);
   };
@@ -260,9 +262,9 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
         description="Are you sure you want to delete this customer? This action cannot be undone."
         danger={true}
         onCancel={() => { setConfirmOpen(false); setDeletePartyId(null); }}
-        onConfirm={() => {
+        onConfirm={async() => {
           if (deletePartyId) {
-            onDeleteParty(deletePartyId);
+            await onDeleteParty(deletePartyId);
             addToast('success', 'Customer deleted');
           }
           setConfirmOpen(false);
