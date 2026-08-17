@@ -232,3 +232,58 @@ html.light {
     color: color-mix(in srgb, var(--text-main) 70%, transparent) !important;
   }
 }
+
+@media print {
+  /* Hides sidebar, header navigation, and general utility buttons */
+  header,
+  aside,
+  button,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Force background colors to print correctly on paper */
+  body,
+  main,
+  div,
+  table,
+  tr,
+  td,
+  th {
+    background-color: white !important;
+    background: white !important;
+    color: black !important;
+    border-color: #cbd5e1 !important;
+  }
+
+  /* Adjust main container to expand fully on paper */
+  main {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* Text color overrides for high readability on print */
+  .text-white,
+  .text-slate-100,
+  .text-slate-900,
+  p,
+  span,
+  td,
+  th,
+  h1,
+  h2,
+  h3 {
+    color: black !important;
+  }
+
+  .text-blue-500,
+  .text-emerald-500,
+  .text-rose-500,
+  .text-amber-500 {
+    color: black !important;
+    font-weight: bold !important;
+  }
+}

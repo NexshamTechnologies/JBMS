@@ -444,7 +444,7 @@ export const LedgerModule: React.FC<LedgerModuleProps> = ({
                 <label className="block text-[#d1d1d1] font-semibold mb-1">Amount (₹) *</label>
                 <input
                   type="number"
-                  value={voucherAmount}
+                  value={voucherAmount === 0 ? '' : voucherAmount}
                   onChange={(e) => setVoucherAmount(parseFloat(e.target.value) || 0)}
                   className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl p-2.5 text-white font-bold text-base focus:outline-none focus:border-blue-500"
                   required

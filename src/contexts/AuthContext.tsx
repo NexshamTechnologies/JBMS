@@ -14,6 +14,7 @@ interface Profile {
   id: string;
   name: string;
   role: UserRole;
+  is_active: boolean;
 }
 
 interface AuthUser {
@@ -98,16 +99,28 @@ export const AuthProvider: React.FC<{
       };
     }
 
-    const profile =
-      await getProfile(data.user.id);
+  const profile =
+  await getProfile(data.user.id);
 
-    if (!profile) {
-      return {
-        error: new Error(
-          "Profile not found."
-        ),
-      };
-    }
+if (!profile) {
+  await supabase.auth.signOut();
+
+  return {
+    error: new Error(
+      "Profile not found."
+    ),
+  };
+}
+
+if (!profile.is_active) {
+  await supabase.auth.signOut();
+
+  return {
+    error: new Error(
+      "Your account has been deactivated. Please contact the Owner."
+    ),
+  };
+}
 
     setUser({
       user: data.user,
@@ -162,14 +175,19 @@ export const AuthProvider: React.FC<{
       if (session?.user) {
 
         const profile =
-          await getProfile(session.user.id);
+  await getProfile(session.user.id);
 
-        if (profile) {
-          setUser({
-            user: session.user,
-            profile,
-          });
-        }
+if (profile?.is_active) {
+  setUser({
+    user: session.user,
+    profile,
+  });
+} else {
+  await supabase.auth.signOut();
+  setUser(null);
+}
+
+
 
       }
 
@@ -186,17 +204,18 @@ export const AuthProvider: React.FC<{
 
         if (session?.user) {
 
-          const profile =
-            await getProfile(session.user.id);
+        const profile =
+  await getProfile(session.user.id);
 
-          if (profile) {
-
-            setUser({
-              user: session.user,
-              profile,
-            });
-
-          }
+if (profile?.is_active) {
+  setUser({
+    user: session.user,
+    profile,
+  });
+} else {
+  await supabase.auth.signOut();
+  setUser(null);
+}
 
         } else {
 

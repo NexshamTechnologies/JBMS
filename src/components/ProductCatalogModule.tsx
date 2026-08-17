@@ -204,10 +204,14 @@ const handleSubmit = async (e: React.FormEvent) => {
           description="Are you sure you want to delete this product? This action cannot be undone."
           danger={true}
           onCancel={() => { setConfirmOpen(false); setDeleteProductId(null); }}
-          onConfirm={() => {
+          onConfirm={async () => {
             if (deleteProductId) {
-              onDeleteProduct(deleteProductId);
-              addToast('success', 'Product deleted');
+              try {
+                await onDeleteProduct(deleteProductId);
+                addToast('success', 'Product deleted');
+              } catch (err) {
+                // error is already handled and alerted by App.tsx
+              }
             }
             setConfirmOpen(false);
             setDeleteProductId(null);
@@ -259,11 +263,11 @@ const handleSubmit = async (e: React.FormEvent) => {
                 </div>
                 <div>
                   <label className="block text-[#d1d1d1] font-semibold mb-1">GST Rate %</label>
-                  <input type="number" min="0" value={form.gstRate} onChange={e => setForm({ ...form, gstRate: Number(e.target.value) })} className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl p-2.5 text-white focus:border-blue-500 focus:outline-none" />
+                  <input type="number" min="0" value={form.gstRate === 0 ? '' : form.gstRate} onChange={e => setForm({ ...form, gstRate: Number(e.target.value) })} className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl p-2.5 text-white focus:border-blue-500 focus:outline-none" />
                 </div>
                 <div>
                   <label className="block text-[#d1d1d1] font-semibold mb-1">Selling Price *</label>
-                  <input type="number" min="0" value={form.sellingPrice} onChange={e => setForm({ ...form, sellingPrice: Number(e.target.value) })} required className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl p-2.5 text-white focus:border-blue-500 focus:outline-none" />
+                  <input type="number" min="0" value={form.sellingPrice === 0 ? '' : form.sellingPrice} onChange={e => setForm({ ...form, sellingPrice: Number(e.target.value) })} required className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl p-2.5 text-white focus:border-blue-500 focus:outline-none" />
                 </div>
               </div>
               <div className="flex justify-end gap-3 pt-2">

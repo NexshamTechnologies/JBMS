@@ -74,13 +74,246 @@ export const CustomerLedgerModule: React.FC<CustomerLedgerModuleProps> = ({
 
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId) || customers[0];
 
+    // ------------------------------------------------------------
+  // DERIVED CUSTOMER TRANSACTIONS
+  //
+  // We intentionally derive the ledger from persisted invoices
+  // and payments instead of relying on the currently-empty
+  // frontend ledgerEntries state.
+  // ------------------------------------------------------------
+
+  const derivedLedger = useMemo<LedgerEntry[]>(() => {
+    if (!selectedCustomerId) return [];
+
+    const transactions: Array<{
+      id: string;
+      partyId: string;
+      date: string;
+      voucherType: LedgerEntry['voucherType'];
+      voucherNumber: string;
+      narration: string;
+      debit: number;
+      credit: number;
+      sortOrder: number;
+    }> = [];
+
+    // ----------------------------------------------------------
+    // INVOICES = DEBIT
+    // Customer owes us more after a sale.
+    // ----------------------------------------------------------
+
+    invoices
+      .filter(invoice => invoice.partyId === selectedCustomerId)
+      .forEach(invoice => {
+        transactions.push({
+          id: `invoice-${invoice.id}`,
+          partyId: invoice.partyId,
+          date: invoice.date,
+          voucherType: 'Sales Invoice',
+          voucherNumber: invoice.invoiceNumber,
+          narration: `Sales invoice ${invoice.invoiceNumber}`,
+          debit: Number(invoice.grandTotal) || 0,
+          credit: 0,
+
+          // Same-day invoices should appear before payments.
+          sortOrder: 1,
+        });
+      });
+
+    // ----------------------------------------------------------
+    // PAYMENTS = CREDIT
+    //
+    // Pending payments are not treated as received money.
+    // Partial / Completed / Advance all represent money received.
+    // ----------------------------------------------------------
+
+    payments
+      .filter(
+        payment =>
+          payment.partyId === selectedCustomerId &&
+          payment.status !== 'Pending'
+      )
+      .forEach(payment => {
+        transactions.push({
+          id: `payment-${payment.id}`,
+          partyId: payment.partyId,
+          date: payment.date,
+          voucherType: 'Payment Receipt',
+          voucherNumber: payment.paymentNumber,
+          narration: payment.invoiceNumber
+            ? `Payment received against ${payment.invoiceNumber}`
+            : 'Advance payment received',
+          debit: 0,
+          credit: Number(payment.amount) || 0,
+
+          // Same-day payments appear after invoices.
+          sortOrder: 2,
+        });
+      });
+
+    // ----------------------------------------------------------
+    // DATE + TYPE ORDER
+    // ----------------------------------------------------------
+
+    transactions.sort((a, b) => {
+      const dateCompare = a.date.localeCompare(b.date);
+
+      if (dateCompare !== 0) {
+        return dateCompare;
+      }
+
+      return a.sortOrder - b.sortOrder;
+    });
+
+    // ----------------------------------------------------------
+    // RUNNING BALANCE
+    //
+    // Positive = customer owes us (Dr)
+    // Negative = we owe customer / customer has advance (Cr)
+    // ----------------------------------------------------------
+
+    let balance = 0;
+
+    return transactions.map(transaction => {
+      balance += transaction.debit - transaction.credit;
+
+      return {
+        id: transaction.id,
+        partyId: transaction.partyId,
+        date: transaction.date,
+        voucherType: transaction.voucherType,
+        voucherNumber: transaction.voucherNumber,
+        narration: transaction.narration,
+        debit: transaction.debit,
+        credit: transaction.credit,
+        runningBalance: balance,
+      };
+    });
+  }, [invoices, payments, selectedCustomerId]);
+
   // Filtered data for selected customer
   const customerLedger = useMemo(() => {
-    let entries = ledgerEntries.filter(e => e.partyId === selectedCustomerId);
-    if (dateFrom) entries = entries.filter(e => e.date >= dateFrom);
-    if (dateTo) entries = entries.filter(e => e.date <= dateTo);
-    return entries.sort((a, b) => a.date.localeCompare(b.date));
-  }, [ledgerEntries, selectedCustomerId, dateFrom, dateTo]);
+    let entries = [...derivedLedger];
+
+    if (dateFrom) {
+      entries = entries.filter(e => e.date >= dateFrom);
+    }
+
+    if (dateTo) {
+      entries = entries.filter(e => e.date <= dateTo);
+    }
+
+    return entries;
+  }, [derivedLedger, dateFrom, dateTo]);
+
+
+  const invoicePaymentMap = useMemo(() => {
+  const map = new Map<string, number>();
+
+  // ------------------------------------------------------------
+  // 1. Explicit invoice-linked payments
+  // ------------------------------------------------------------
+
+  payments
+    .filter(
+      payment =>
+        payment.partyId === selectedCustomerId &&
+        payment.status !== 'Pending' &&
+        payment.invoiceNumber
+    )
+    .forEach(payment => {
+      const key = payment.invoiceNumber!
+        .trim()
+        .toLowerCase();
+
+      map.set(
+        key,
+        (map.get(key) || 0) +
+          Number(payment.amount || 0)
+      );
+    });
+
+  // ------------------------------------------------------------
+  // 2. Customer-level advance payments
+  // ------------------------------------------------------------
+
+  let advance =
+    payments
+      .filter(
+        payment =>
+          payment.partyId === selectedCustomerId &&
+          payment.status !== 'Pending' &&
+          !payment.invoiceNumber
+      )
+      .reduce(
+        (sum, payment) =>
+          sum + Number(payment.amount || 0),
+        0
+      );
+
+  // ------------------------------------------------------------
+  // 3. Apply advance to oldest invoices first
+  // ------------------------------------------------------------
+
+  const sortedInvoices = [...invoices]
+    .filter(
+      invoice =>
+        invoice.partyId === selectedCustomerId
+    )
+    .sort((a, b) => {
+      const dateCompare =
+        a.date.localeCompare(b.date);
+
+      if (dateCompare !== 0) {
+        return dateCompare;
+      }
+
+      return a.invoiceNumber.localeCompare(
+        b.invoiceNumber
+      );
+    });
+
+  sortedInvoices.forEach(invoice => {
+
+    const key =
+      invoice.invoiceNumber
+        .trim()
+        .toLowerCase();
+
+    const alreadyPaid =
+      map.get(key) || 0;
+
+    const outstanding =
+      Math.max(
+        Number(invoice.grandTotal || 0) -
+          alreadyPaid,
+        0
+      );
+
+    if (
+      outstanding <= 0 ||
+      advance <= 0
+    ) {
+      return;
+    }
+
+    const allocation =
+      Math.min(outstanding, advance);
+
+    map.set(
+      key,
+      alreadyPaid + allocation
+    );
+
+    advance -= allocation;
+  });
+
+  return map;
+}, [
+  payments,
+  invoices,
+  selectedCustomerId
+]);
 
   const customerInvoices = useMemo(() => {
     let inv = invoices.filter(i => i.partyId === selectedCustomerId);
@@ -97,16 +330,34 @@ export const CustomerLedgerModule: React.FC<CustomerLedgerModuleProps> = ({
   }, [payments, selectedCustomerId, dateFrom, dateTo]);
 
   // Summary stats
-  const totalBilled = customerInvoices.reduce((s, i) => s + i.grandTotal, 0);
-  const totalPaid = customerInvoices.reduce((s, i) => s + i.paidAmount, 0);
+  const totalBilled = customerInvoices.reduce(
+    (sum, invoice) => sum + Number(invoice.grandTotal || 0),
+    0
+  );
+
+  const totalPaid = customerPayments
+    .filter(payment => payment.status !== 'Pending')
+    .reduce(
+      (sum, payment) => sum + Number(payment.amount || 0),
+      0
+    );
+
   const outstanding = totalBilled - totalPaid;
 
-  const totalDebit = customerLedger.reduce((s, e) => s + e.debit, 0);
-  const totalCredit = customerLedger.reduce((s, e) => s + e.credit, 0);
-  const runningBalance = customerLedger.length > 0
-    ? customerLedger[customerLedger.length - 1].runningBalance
-    : selectedCustomer?.currentBalance || 0;
+   const totalDebit = customerLedger.reduce(
+    (sum, entry) => sum + Number(entry.debit || 0),
+    0
+  );
 
+  const totalCredit = customerLedger.reduce(
+    (sum, entry) => sum + Number(entry.credit || 0),
+    0
+  );
+
+  const runningBalance =
+    customerLedger.length > 0
+      ? customerLedger[customerLedger.length - 1].runningBalance
+      : 0;
   // Export CSV
   const exportCSV = () => {
     if (!selectedCustomer) return;
@@ -146,7 +397,7 @@ export const CustomerLedgerModule: React.FC<CustomerLedgerModuleProps> = ({
   return (
     <div className="flex flex-col lg:flex-row gap-4 h-full">
       {/* ── LEFT: Customer List Panel ── */}
-      <div className="lg:w-72 flex-shrink-0 space-y-3">
+      <div className="lg:w-72 flex-shrink-0 space-y-3 print:hidden">
         <div className="bg-[#141414] border border-white/10 rounded-2xl p-4">
           <div className="flex items-center gap-2 mb-3">
             <BookOpen className="w-4 h-4 text-blue-500" />
@@ -222,7 +473,7 @@ export const CustomerLedgerModule: React.FC<CustomerLedgerModuleProps> = ({
                 </div>
               </div>
               {/* Action Buttons */}
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center gap-2 flex-shrink-0 print:hidden">
                 <button
                   onClick={() => setShowDateFilter(f => !f)}
                   className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[10px] font-semibold border transition ${showDateFilter ? 'bg-blue-600 text-white border-blue-600' : 'bg-[#1a1a1a] text-[#d1d1d1] border-white/10 hover:border-blue-500'}`}
@@ -246,7 +497,7 @@ export const CustomerLedgerModule: React.FC<CustomerLedgerModuleProps> = ({
 
             {/* Date Filter */}
             {showDateFilter && (
-              <div className="mt-4 pt-4 border-t border-white/10 flex flex-wrap items-end gap-3">
+              <div className="mt-4 pt-4 border-t border-white/10 flex flex-wrap items-end gap-3 print:hidden">
                 <div>
                   <label className="block text-[10px] uppercase tracking-widest text-[#d1d1d1]/40 mb-1">From</label>
                   <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
@@ -270,7 +521,20 @@ export const CustomerLedgerModule: React.FC<CustomerLedgerModuleProps> = ({
             {[
               { label: 'Total Billed',      value: totalBilled,             color: 'text-white',         border: 'border-white/10' },
               { label: 'Total Received',    value: totalPaid,               color: 'text-emerald-500',   border: 'border-emerald-500/20' },
-              { label: 'Outstanding',       value: outstanding,             color: outstanding > 0 ? 'text-rose-500' : 'text-emerald-500', border: outstanding > 0 ? 'border-rose-500/20' : 'border-emerald-500/20' },
+              {
+  label: outstanding >= 0 ? 'Outstanding' : 'Advance / Credit',
+  value: Math.abs(outstanding),
+  color:
+    outstanding > 0
+      ? 'text-rose-500'
+      : outstanding < 0
+        ? 'text-emerald-500'
+        : 'text-emerald-500',
+  border:
+    outstanding > 0
+      ? 'border-rose-500/20'
+      : 'border-emerald-500/20'
+},
               { label: 'Credit Limit',      value: selectedCustomer.creditLimit, color: 'text-blue-500', border: 'border-blue-500/20' },
             ].map(s => (
               <div key={s.label} className={`bg-[#141414] border ${s.border} rounded-2xl p-4`}>
@@ -296,7 +560,7 @@ export const CustomerLedgerModule: React.FC<CustomerLedgerModuleProps> = ({
 
           {/* Tabs */}
           <div className="bg-[#141414] border border-white/10 rounded-2xl overflow-hidden">
-            <div className="flex border-b border-white/10">
+            <div className="flex border-b border-white/10 print:hidden">
               {tabs.map(tab => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -420,23 +684,64 @@ export const CustomerLedgerModule: React.FC<CustomerLedgerModuleProps> = ({
                       </tr>
                     ) : (
                       customerInvoices.map(inv => {
-                        const due = inv.grandTotal - inv.paidAmount;
+                        const paidAmount =
+  invoicePaymentMap.get(
+    inv.invoiceNumber.trim().toLowerCase()
+  ) || 0;
+
+const rawDue = inv.grandTotal - paidAmount;
+const due = Math.max(0, rawDue);
+const advance = Math.max(0, -rawDue);
+
+const status =
+  paidAmount >= inv.grandTotal
+    ? 'Paid'
+    : paidAmount > 0
+      ? 'Partially Paid'
+      : 'Unpaid';
                         return (
                           <tr key={inv.id} className="hover:bg-white/5 transition">
-                            <td className="p-3.5 font-bold text-blue-500">{inv.invoiceNumber}</td>
-                            <td className="p-3.5">{inv.date}</td>
-                            <td className="p-3.5">{inv.dueDate}</td>
-                            <td className="p-3.5 text-right font-semibold text-white">{fmt(inv.grandTotal)}</td>
-                            <td className="p-3.5 text-right text-emerald-500 font-semibold">{fmt(inv.paidAmount)}</td>
-                            <td className={`p-3.5 text-right font-bold ${due > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
-                              {fmt(due)}
-                            </td>
-                            <td className="p-3.5">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider ${statusColors[inv.status] || 'bg-white/10 text-white'}`}>
-                                {inv.status}
-                              </span>
-                            </td>
-                          </tr>
+  <td className="p-3.5 font-bold text-blue-500">
+    {inv.invoiceNumber}
+  </td>
+
+  <td className="p-3.5">
+    {inv.date}
+  </td>
+
+  <td className="p-3.5">
+    {inv.dueDate}
+  </td>
+
+  <td className="p-3.5 text-right font-bold text-white">
+    {fmt(inv.grandTotal)}
+  </td>
+
+  <td className="p-3.5 text-right text-emerald-500 font-semibold">
+    {fmt(paidAmount)}
+  </td>
+
+  <td
+    className={`p-3.5 text-right font-bold ${
+      due > 0
+        ? 'text-rose-500'
+        : 'text-emerald-500'
+    }`}
+  >
+    {fmt(due)}
+  </td>
+
+  <td className="p-3.5">
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider ${
+        statusColors[status] ||
+        'bg-white/10 text-white'
+      }`}
+    >
+      {status}
+    </span>
+  </td>
+</tr>
                         );
                       })
                     )}

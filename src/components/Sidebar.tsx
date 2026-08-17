@@ -110,17 +110,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-full text-xs uppercase tracking-widest font-semibold transition-all group ${
-                  isActive
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-full text-xs uppercase tracking-widest font-semibold transition-all group ${isActive
                     ? 'bg-blue-600 text-white font-bold shadow-lg shadow-blue-500/20'
                     : 'text-[#d1d1d1]/70 hover:bg-white/5 hover:text-white'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <Icon
-                    className={`w-4 h-4 transition-colors ${
-                      isActive ? 'text-white' : 'text-[#d1d1d1]/40 group-hover:text-blue-500'
-                    }`}
+                    className={`w-4 h-4 transition-colors ${isActive ? 'text-white' : 'text-[#d1d1d1]/40 group-hover:text-blue-500'
+                      }`}
                   />
                   <span>{item.label}</span>
                 </div>
@@ -128,11 +126,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div className="flex items-center gap-2">
                   {item.badge !== null && (
                     <span
-                      className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                        isActive
+                      className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider ${isActive
                           ? 'bg-white/20 text-white'
                           : item.badgeColor || 'bg-[#1a1a1a] text-[#d1d1d1]'
-                      }`}
+                        }`}
                     >
                       {item.badge}
                     </span>

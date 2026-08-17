@@ -25,11 +25,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
   parties,
   payments,
   products,
-  onNavigate
+  onNavigate,
+  onOpenNewInvoice
 }) => {
   const customers = parties.filter((p) => p.type === 'Customer');
 
   // Calculations
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todaySales = invoices
+    .filter((inv) => inv.date === todayStr)
+    .reduce((acc, inv) => acc + inv.grandTotal, 0);
+
   const totalInvoicedValue = invoices.reduce((acc, inv) => acc + inv.grandTotal, 0);
   const totalCollections = payments
     .filter((p) => p.status === 'Completed' || p.status === 'Partial' || p.status === 'Advance')
@@ -37,6 +43,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const unpaidInvoicesValue = invoices
     .filter((inv) => inv.status !== 'Paid')
     .reduce((acc, inv) => acc + (inv.grandTotal - inv.paidAmount), 0);
+
+  const totalCustomersCount = customers.length;
 
   const formatRupee = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -48,8 +56,43 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Dashboard Header with Quick Action */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#141414] border border-white/10 p-6 rounded-2xl shadow-xl">
+        <div>
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-blue-500" />
+            <h2 className="text-xl font-serif italic text-white">Business Dashboard</h2>
+          </div>
+          <p className="text-xs text-[#d1d1d1]/60 mt-1">
+            Real-time operational metrics, quick shortcuts, and sales activity
+          </p>
+        </div>
+
+        <button
+          onClick={onOpenNewInvoice}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-full text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-blue-500/20 transition cursor-pointer"
+        >
+          <Receipt className="w-4 h-4" />
+          <span>+ Generate Invoice</span>
+        </button>
+      </div>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Today's Sales */}
+        <div className="bg-[#141414] border border-white/10 rounded-2xl p-5 hover:border-white/20 transition shadow-sm">
+          <div className="flex justify-between items-start mb-3">
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#d1d1d1]/50">Today's Sales</span>
+            <div className="p-2 bg-blue-500/10 rounded-full text-blue-500 border border-blue-500/20">
+              <TrendingUp className="w-4 h-4" />
+            </div>
+          </div>
+          <p className="text-2xl lg:text-3xl font-extrabold text-white tracking-tight">{formatRupee(todaySales)}</p>
+          <p className="text-[10px] text-[#d1d1d1]/40 mt-1">
+            {invoices.filter((inv) => inv.date === todayStr).length} Bills Today
+          </p>
+        </div>
+
         {/* Total Invoiced Sales */}
         <div className="bg-[#141414] border border-white/10 rounded-2xl p-5 hover:border-white/20 transition shadow-sm">
           <div className="flex justify-between items-start mb-3">
@@ -85,18 +128,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <p className="text-2xl lg:text-3xl font-extrabold text-rose-500 tracking-tight">{formatRupee(unpaidInvoicesValue)}</p>
           <p className="text-[10px] text-[#d1d1d1]/40 mt-1">Pending Customer Receivables</p>
         </div>
-
-        {/* Active Products */}
-        <div className="bg-[#141414] border border-white/10 rounded-2xl p-5 hover:border-white/20 transition shadow-sm">
-          <div className="flex justify-between items-start mb-3">
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#d1d1d1]/50">Active Products</span>
-            <div className="p-2 bg-blue-500/10 rounded-full text-blue-500 border border-blue-500/20">
-              <Boxes className="w-4 h-4" />
-            </div>
-          </div>
-          <p className="text-2xl lg:text-3xl font-extrabold text-blue-500 tracking-tight">{products.length}</p>
-          <p className="text-[10px] text-[#d1d1d1]/40 mt-1">Products Registered in Catalog</p>
-        </div>
       </div>
 
       {/* Grid: Recent Invoices & Quick Nav */}
@@ -110,7 +141,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
             <button
               onClick={() => onNavigate('billing')}
-              className="text-[11px] uppercase tracking-wider text-blue-500 hover:text-white font-bold flex items-center gap-1 border border-blue-500/30 px-3 py-1.5 rounded-full hover:bg-blue-500/10 transition"
+              className="text-[11px] uppercase tracking-wider text-blue-500 hover:text-white font-bold flex items-center gap-1 border border-blue-500/30 px-3 py-1.5 rounded-full hover:bg-blue-500/10 transition cursor-pointer"
             >
               View All <ArrowUpRight className="w-3.5 h-3.5" />
             </button>
@@ -136,7 +167,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   invoices.slice(0, 5).map((inv) => (
                     <tr key={inv.id} className="hover:bg-white/5 transition">
                       <td className="p-3.5 font-bold text-blue-500">{inv.invoiceNumber}</td>
-                      <td className="p-3.5 font-semibold text-white">{inv.partyName}</td>
+                      <td className="p-3.5 font-semibold text-white truncate max-w-[120px]">{inv.partyName || "Unnamed Customer"}</td>
                       <td className="p-3.5 text-[#d1d1d1]/70">{inv.date}</td>
                       <td className="p-3.5 text-right font-extrabold text-white">{formatRupee(inv.grandTotal)}</td>
                       <td className="p-3.5">

@@ -17,6 +17,18 @@ import { ToastProvider } from './components/ToastProvider';
 
 
 import {
+  getInvoices,
+  createInvoice,
+} from "./services/invoices";
+
+import {
+  getPayments,
+  createPayment,
+  updatePayment,
+  deletePayment,
+} from "./services/payments";
+
+import {
   Party,
   Invoice,
   LedgerEntry,
@@ -101,7 +113,7 @@ export default function Root() {
 // Main application shell with Role-Based Access Control
 // ---------------------------------------------------------------------------
 function App() {
-  const { userRole } = useAuth();
+  const { userRole, user } = useAuth();
 
   // Navigation
   const [activeTab, setActiveTab] = useState<string>('dashboard');
@@ -125,14 +137,7 @@ function App() {
     return 'dark';
   });
 
-const loadCustomers = async () => {
-  try {
-    const data = await getCustomers();
-    setParties(data);
-  } catch (err) {
-    console.error(err);
-  }
-};
+
 
   const toggleTheme = () => {
     setTheme((prev) => {
@@ -157,51 +162,246 @@ const loadCustomers = async () => {
 // Frontend-only phase: application starts with no business data.
 // Real persistence will be connected later.
 
+// Master State
 const [parties, setParties] = useState<Party[]>([]);
 const [products, setProducts] = useState<Product[]>([]);
 const [payments, setPayments] = useState<Payment[]>([]);
 const [ledgerEntries, setLedgerEntries] = useState<LedgerEntry[]>([]);
 const [invoices, setInvoices] = useState<Invoice[]>([]);
 
+// ------------------------------------------------------------
+// Invoice payment synchronization
+// ------------------------------------------------------------
+
+const syncInvoicesWithPayments = (
+  currentInvoices: Invoice[],
+  currentPayments: Payment[]
+): Invoice[] => {
+
+  // ------------------------------------------------------------
+  // STEP 1:
+  // Calculate explicitly invoice-linked payments.
+  // ------------------------------------------------------------
+
+  const invoicePaidMap = new Map<string, number>();
+
+  currentPayments
+    .filter(
+      (payment) =>
+        payment.status !== 'Pending' &&
+        payment.invoiceNumber
+    )
+    .forEach((payment) => {
+      const key = `${payment.partyId}-${payment.invoiceNumber!
+        .trim()
+        .toLowerCase()}`;
+
+      invoicePaidMap.set(
+        key,
+        (invoicePaidMap.get(key) || 0) +
+          Number(payment.amount || 0)
+      );
+    });
+
+  // ------------------------------------------------------------
+  // STEP 2:
+  // Calculate unallocated customer advances.
+  //
+  // Payments without invoiceNumber are advances.
+  // ------------------------------------------------------------
+
+  const advancesByCustomer = new Map<string, number>();
+
+  currentPayments
+    .filter(
+      (payment) =>
+        payment.status !== 'Pending' &&
+        !payment.invoiceNumber
+    )
+    .forEach((payment) => {
+      advancesByCustomer.set(
+        payment.partyId,
+        (advancesByCustomer.get(payment.partyId) || 0) +
+          Number(payment.amount || 0)
+      );
+    });
+
+  // ------------------------------------------------------------
+  // STEP 3:
+  // Sort invoices chronologically.
+  //
+  // Oldest outstanding invoice gets advance first.
+  // ------------------------------------------------------------
+
+  const sortedInvoices = [...currentInvoices].sort((a, b) => {
+    const dateCompare = a.date.localeCompare(b.date);
+
+    if (dateCompare !== 0) {
+      return dateCompare;
+    }
+
+    return a.invoiceNumber.localeCompare(b.invoiceNumber);
+  });
+
+  // ------------------------------------------------------------
+  // STEP 4:
+  // Apply customer advances to outstanding invoices.
+  // ------------------------------------------------------------
+
+  const advanceRemaining = new Map(
+    advancesByCustomer
+  );
+
+  const advanceAllocation = new Map<string, number>();
+
+  sortedInvoices.forEach((invoice) => {
+
+    const invoiceKey =
+      `${invoice.partyId}-${invoice.invoiceNumber
+        .trim()
+        .toLowerCase()}`;
+
+    const linkedPaid =
+      invoicePaidMap.get(invoiceKey) || 0;
+
+    const invoiceTotal =
+      Number(invoice.grandTotal || 0);
+
+    const outstandingBeforeAdvance =
+      Math.max(invoiceTotal - linkedPaid, 0);
+
+    if (outstandingBeforeAdvance <= 0) {
+      return;
+    }
+
+    const customerAdvance =
+      advanceRemaining.get(invoice.partyId) || 0;
+
+    if (customerAdvance <= 0) {
+      return;
+    }
+
+    const amountFromAdvance =
+      Math.min(
+        outstandingBeforeAdvance,
+        customerAdvance
+      );
+
+    advanceAllocation.set(
+      invoiceKey,
+      amountFromAdvance
+    );
+
+    advanceRemaining.set(
+      invoice.partyId,
+      customerAdvance - amountFromAdvance
+    );
+  });
+
+  // ------------------------------------------------------------
+  // STEP 5:
+  // Calculate final invoice status.
+  // ------------------------------------------------------------
+
+  return currentInvoices.map((invoice) => {
+
+    const invoiceKey =
+      `${invoice.partyId}-${invoice.invoiceNumber
+        .trim()
+        .toLowerCase()}`;
+
+    const linkedPaid =
+      invoicePaidMap.get(invoiceKey) || 0;
+
+    const advancePaid =
+      advanceAllocation.get(invoiceKey) || 0;
+
+    const paidAmount =
+      linkedPaid + advancePaid;
+
+    const grandTotal =
+      Number(invoice.grandTotal || 0);
+
+    let status: Invoice['status'] = 'Unpaid';
+
+    if (paidAmount >= grandTotal) {
+      status = 'Paid';
+    } else if (paidAmount > 0) {
+      status = 'Partially Paid';
+    }
+
+    return {
+      ...invoice,
+      paidAmount,
+      status,
+    };
+  });
+};
+
+// ------------------------------------------------------------
+// Data loaders
+// ------------------------------------------------------------
+
+const loadCustomers = async () => {
+  try {
+    const data = await getCustomers();
+    setParties(data);
+  } catch (err) {
+    console.error('Failed to load customers:', err);
+  }
+};
+
 const loadProducts = async () => {
   try {
     const data = await getProducts();
     setProducts(data);
   } catch (err) {
-    console.error(err);
+    console.error('Failed to load products:', err);
   }
 };
 
+const loadInvoices = async () => {
+  try {
+    const [invoiceData, paymentData] = await Promise.all([
+      getInvoices(),
+      getPayments(),
+    ]);
+
+    // Keep payment state synchronized with invoice state.
+    setPayments(paymentData);
+
+    const syncedInvoices = syncInvoicesWithPayments(
+      invoiceData,
+      paymentData
+    );
+
+    setInvoices(syncedInvoices);
+  } catch (err) {
+    console.error('Failed to load invoices:', err);
+  }
+};
+
+const loadPayments = async () => {
+  try {
+    const data = await getPayments();
+    setPayments(data);
+  } catch (err) {
+    console.error('Failed to load payments:', err);
+  }
+};
+
+// ------------------------------------------------------------
+// Initial data load
+// ------------------------------------------------------------
+
 useEffect(() => {
-  loadProducts();
-   loadCustomers();
+  void loadProducts();
+  void loadCustomers();
+  void loadInvoices();
+
 }, []);
 
-  // Payment & Invoice synchronization helper
-  const syncInvoicesWithPayments = (currentInvoices: Invoice[], currentPayments: Payment[]): Invoice[] => {
-    return currentInvoices.map((inv) => {
-      const linkedPayments = currentPayments.filter(
-        (p) =>
-          p.invoiceNumber &&
-          p.invoiceNumber.trim().toLowerCase() === inv.invoiceNumber.trim().toLowerCase() &&
-          p.status !== 'Pending'
-      );
-      const paidAmount = linkedPayments.reduce((sum, p) => sum + p.amount, 0);
-      let status: Invoice['status'] = 'Unpaid';
-      if (paidAmount >= inv.grandTotal) {
-        status = 'Paid';
-      } else if (paidAmount > 0) {
-        status = 'Partially Paid';
-      } else {
-        status = 'Unpaid';
-      }
-      return {
-        ...inv,
-        paidAmount,
-        status
-      };
-    });
-  };
+
 
 const handleAddProduct = async (newProduct: Product) => {
   try {
@@ -233,39 +433,127 @@ const handleDeleteProduct = async (
   productId: string
 ) => {
   try {
-    await deleteProduct(productId);
+    const isProductBilled = invoices.some((inv) =>
+      inv.items.some((item) => item.productId === productId)
+    );
 
+    if (isProductBilled) {
+      const errMsg = "Cannot delete product because it is already referenced in active billing invoices. You can edit its details instead.";
+      alert(errMsg);
+      throw new Error(errMsg);
+    }
+
+    await deleteProduct(productId);
     await loadProducts();
   } catch (err) {
-    console.error(err);
+    console.error("Failed to delete product:", err);
+    if (!(err instanceof Error && err.message.includes("referenced in active billing invoices"))) {
+      alert(err instanceof Error ? err.message : "Failed to delete product.");
+    }
+    throw err;
   }
 };
 
 
   // Payment Handlers with Automatic Invoice Sync
-  const handleAddPayment = (newPayment: Payment) => {
-    const updatedPayments = [newPayment, ...payments];
-    setPayments(updatedPayments);
-    setInvoices((prevInvoices) => syncInvoicesWithPayments(prevInvoices, updatedPayments));
-  };
+const handleAddPayment = async (newPayment: Payment) => {
+  try {
+    if (!user?.profile.id) {
+      throw new Error("Authenticated profile not found.");
+    }
 
-  const handleUpdatePayment = (updatedPayment: Payment) => {
-    const updatedPayments = payments.map(p => (p.id === updatedPayment.id ? updatedPayment : p));
-    setPayments(updatedPayments);
-    setInvoices((prevInvoices) => syncInvoicesWithPayments(prevInvoices, updatedPayments));
-  };
+    await createPayment(
+      newPayment,
+      user.profile.id
+    );
 
-  const handleDeletePayment = (paymentId: string) => {
-    const updatedPayments = payments.filter(p => p.id !== paymentId);
+    const updatedPayments = await getPayments();
+
     setPayments(updatedPayments);
-    setInvoices((prevInvoices) => syncInvoicesWithPayments(prevInvoices, updatedPayments));
-  };
+
+    setInvoices((prevInvoices) =>
+      syncInvoicesWithPayments(
+        prevInvoices,
+        updatedPayments
+      )
+    );
+  } catch (err) {
+  console.error("Failed to add payment:", err);
+
+  alert(
+    err instanceof Error
+      ? err.message
+      : "Failed to add payment."
+  );
+}
+};
+
+const handleUpdatePayment = async (
+  updatedPayment: Payment
+) => {
+  try {
+    await updatePayment(
+      updatedPayment.id,
+      updatedPayment
+    );
+
+    const updatedPayments = await getPayments();
+
+    setPayments(updatedPayments);
+
+    setInvoices((prevInvoices) =>
+      syncInvoicesWithPayments(
+        prevInvoices,
+        updatedPayments
+      )
+    );
+ } catch (err) {
+  console.error("Failed to update payment:", err);
+
+  alert(
+    err instanceof Error
+      ? err.message
+      : "Failed to delete payment."
+  );
+}
+};
+
+const handleDeletePayment = async (
+  paymentId: string
+) => {
+  try {
+    await deletePayment(paymentId);
+
+    const updatedPayments = await getPayments();
+
+    setPayments(updatedPayments);
+
+    setInvoices((prevInvoices) =>
+      syncInvoicesWithPayments(
+        prevInvoices,
+        updatedPayments
+      )
+    );
+  } catch (err) {
+  console.error("Failed to delete payment:", err);
+
+  alert(
+    err instanceof Error
+      ? err.message
+      : "Failed to delete payment."
+  );
+}
+};
 
   // Invoice Handler
-  const handleCreateInvoice = (newInvoice: Invoice) => {
-    const updatedInvoices = [newInvoice, ...invoices];
-    setInvoices(syncInvoicesWithPayments(updatedInvoices, payments));
-  };
+const handleCreateInvoice = async (newInvoice: Invoice) => {
+  if (!user?.profile?.id) {
+    throw new Error("Authenticated user profile not found.");
+  }
+
+  await createInvoice(newInvoice, user.profile.id);
+  await loadInvoices();
+};
 
   // Party Handlers (Customers)
 const handleAddParty = async (newParty: Party) => {
@@ -288,20 +576,45 @@ const handleUpdateParty = async (updatedParty: Party) => {
 
 const handleDeleteParty = async (partyId: string) => {
   try {
+    const hasInvoices = invoices.some(inv => inv.partyId === partyId);
+    const hasPayments = payments.some(p => p.partyId === partyId);
+
+    if (hasInvoices || hasPayments) {
+      alert("Cannot delete customer because they have active billing invoices or payments. You can block/deactivate them instead to restrict billing.");
+      return;
+    }
+
     await deleteCustomer(partyId);
     await loadCustomers();
   } catch (err) {
-    console.error(err);
+    console.error("Failed to delete customer:", err);
+    alert(err instanceof Error ? err.message : "Failed to delete customer.");
   }
 };
 
-  const handleToggleBlock = (partyId: string) => {
-    setParties(
-      parties.map(p =>
-        p.id === partyId ? { ...p, isBlocked: !p.isBlocked } : p
-      )
+const handleToggleBlock = async (partyId: string) => {
+  try {
+    const party = parties.find(p => p.id === partyId);
+
+    if (!party) {
+      throw new Error("Customer not found.");
+    }
+
+    await updateCustomer(partyId, {
+      isBlocked: !party.isBlocked,
+    });
+
+    await loadCustomers();
+  } catch (err) {
+    console.error("Failed to update customer status:", err);
+
+    alert(
+      err instanceof Error
+        ? err.message
+        : "Failed to update customer status."
     );
-  };
+  }
+};
 
   // Backup & Restore Handlers
   const handleRestoreAll = (restoredData: BackupData) => {
@@ -397,14 +710,12 @@ const handleResetToDefaults = () => {
 
           {activeTab === 'analytics' && allowedTabs.includes('analytics') && (
             <AnalyticsModule
-              salesOrders={[]}
-              fabricRolls={[]}
-              invoices={invoices}
-              parties={parties}
-              payments={payments}
-              products={products}
-              theme={theme}
-            />
+  invoices={invoices}
+  parties={parties}
+  payments={payments}
+  products={products}
+  theme={theme}
+/>
           )}
 
           {activeTab === 'customers' && allowedTabs.includes('customers') && (
@@ -423,6 +734,7 @@ const handleResetToDefaults = () => {
             <PaymentsModule
               payments={payments}
               parties={parties}
+               invoices={invoices}
               onAddPayment={handleAddPayment}
               onUpdatePayment={handleUpdatePayment}
               onDeletePayment={handleDeletePayment}
@@ -455,8 +767,6 @@ const handleResetToDefaults = () => {
                 products,
                 payments
               }}
-              onRestoreAll={handleRestoreAll}
-              onResetToDefaults={handleResetToDefaults}
             />
           )}
         </main>

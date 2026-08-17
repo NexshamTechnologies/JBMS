@@ -12,13 +12,14 @@ import {
 } from 'lucide-react';
 import { Invoice, Party, InvoiceItem, Payment, PaymentMode, Product } from '../types';
 import { InvoicePrintModal } from './InvoicePrintModal';
+import { useToast } from './ToastProvider';
 
 interface BillingModuleProps {
   invoices: Invoice[];
   parties: Party[];
   payments?: Payment[];
   products?: Product[];
-  onCreateInvoice: (newInvoice: Invoice) => void;
+  onCreateInvoice: (newInvoice: Invoice) => Promise<void>;
   onAddPayment: (newPayment: Payment) => void;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
@@ -38,6 +39,7 @@ export const BillingModule: React.FC<BillingModuleProps> = ({
   isOpenNewInvoiceModal,
   setIsOpenNewInvoiceModal
 }) => {
+  const { addToast } = useToast();
   const [selectedInvoiceForPrint, setSelectedInvoiceForPrint] =
     useState<Invoice | null>(null);
   const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] =
@@ -50,6 +52,7 @@ export const BillingModule: React.FC<BillingModuleProps> = ({
     new Date().toISOString().split('T')[0]
   );
   const [paymentRemarksInput, setPaymentRemarksInput] = useState<string>('');
+  const [isSavingInvoice, setIsSavingInvoice] = useState(false);
 
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('All');
   const [selectedGstTypeFilter, setSelectedGstTypeFilter] = useState<string>('All');
@@ -76,15 +79,29 @@ export const BillingModule: React.FC<BillingModuleProps> = ({
       discount: 0
     }
   ]);
+const getPaymentStatus = (invoice: Invoice): Invoice['status'] => {
+  const total = Number(invoice.grandTotal || 0);
+  const paid = Number(invoice.paidAmount || 0);
 
+  if (paid <= 0) {
+    return 'Unpaid';
+  }
+
+  if (paid >= total) {
+    return 'Paid';
+  }
+
+  return 'Partially Paid';
+};
   const filteredInvoices = invoices.filter((inv) => {
     const matchesSearch =
       inv.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       inv.partyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       inv.partyGstin.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus =
-      selectedStatusFilter === 'All' || inv.status === selectedStatusFilter;
+const matchesStatus =
+  selectedStatusFilter === 'All' ||
+  getPaymentStatus(inv) === selectedStatusFilter;
 
     const matchesGstType =
       selectedGstTypeFilter === 'All' ||
@@ -94,18 +111,51 @@ export const BillingModule: React.FC<BillingModuleProps> = ({
     return matchesSearch && matchesStatus && matchesGstType;
   });
 
-  const totalInvoiced = invoices.reduce((acc, inv) => acc + inv.grandTotal, 0);
-  const totalGstCollected = invoices.reduce(
-    (acc, inv) => acc + inv.cgstTotal + inv.sgstTotal + inv.igstTotal,
+const totalInvoiced = invoices.reduce(
+  (acc, inv) => acc + Number(inv.grandTotal || 0),
+  0
+);
+
+const totalGstCollected = invoices.reduce(
+  (acc, inv) =>
+    acc +
+    Number(inv.cgstTotal || 0) +
+    Number(inv.sgstTotal || 0) +
+    Number(inv.igstTotal || 0),
+  0
+);
+
+// Only actual outstanding receivables.
+// Never allow an overpaid invoice to create a negative receivable.
+const totalPendingReceivables = invoices.reduce(
+  (acc, inv) =>
+    acc +
+    Math.max(
+      0,
+      Number(inv.grandTotal || 0) - Number(inv.paidAmount || 0)
+    ),
+  0
+);
+
+// Amount received beyond the invoice value.
+// This represents customer advance / credit balance.
+const totalCustomerAdvance = invoices.reduce(
+  (acc, inv) =>
+    acc +
+    Math.max(
+      0,
+      Number(inv.paidAmount || 0) - Number(inv.grandTotal || 0)
+    ),
+  0
+);
+
+const totalNonGstSales = invoices
+  .filter((inv) => inv.isGstInvoice === false)
+  .reduce(
+    (acc, inv) => acc + Number(inv.grandTotal || 0),
     0
   );
-  const totalUnpaid = invoices.reduce(
-    (acc, inv) => acc + (inv.grandTotal - inv.paidAmount),
-    0
-  );
-  const totalNonGstSales = invoices
-    .filter((inv) => inv.isGstInvoice === false)
-    .reduce((acc, inv) => acc + inv.grandTotal, 0);
+
 
   const handleProductSelect = (index: number, selectedProdId: string) => {
     const prod = products.find((p) => p.id === selectedProdId);
@@ -177,14 +227,47 @@ export const BillingModule: React.FC<BillingModuleProps> = ({
   const igstTotal = computedInvoiceItems.reduce((acc, i) => acc + i.igstAmount, 0);
   const grandTotal = taxableValue + cgstTotal + sgstTotal + igstTotal;
 
-  const handleSubmitNewInvoice = (e: React.FormEvent) => {
+  const handleSubmitNewInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSavingInvoice) return;
+
     const party = parties.find((p) => p.id === partyId) || parties[0];
+    if (!party) {
+      addToast('error', 'Add and select a customer before creating an invoice.');
+      return;
+    }
+
+    // Calculate current financial year prefix (e.g. JS/26-27/)
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth(); // 0-11
+    const currentYear = currentDate.getFullYear();
+    const fyStart = currentMonth >= 3 ? currentYear : currentYear - 1;
+    const fyEnd = (fyStart + 1) % 100;
+    const fyPrefix = `JS/${String(fyStart).slice(-2)}-${String(fyEnd).padStart(2, '0')}/`;
+
+    // Determine next sequential invoice number based on max suffix of existing invoices matching the current FY prefix
+    let maxNum = 0;
+    let hasMatchingFy = false;
+
+    invoices.forEach((inv) => {
+      if (inv.invoiceNumber.startsWith(fyPrefix)) {
+        hasMatchingFy = true;
+        const suffix = inv.invoiceNumber.substring(fyPrefix.length);
+        const num = parseInt(suffix, 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
+    });
+
+    // If no invoices exist in the current FY, start from 1. Otherwise increment.
+    const nextSeq = hasMatchingFy ? maxNum + 1 : 1;
+    const nextInvoiceNumber = `${fyPrefix}${nextSeq}`;
 
     const newInvoice: Invoice = {
       id: `INV-${Date.now()}`,
-      invoiceNumber: `JS/24-25/${Math.floor(850 + Math.random() * 100)}`,
-      orderNumber: `JSO-2025-${Math.floor(100 + Math.random() * 900)}`,
+      invoiceNumber: nextInvoiceNumber,
+      orderNumber: `JSO-${currentYear}-${Math.floor(100 + Math.random() * 900)}`,
       date: new Date().toISOString().split('T')[0],
       dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
         .toISOString()
@@ -211,9 +294,19 @@ export const BillingModule: React.FC<BillingModuleProps> = ({
       lrNumber: isGstEnabled ? lrNumber : undefined
     };
 
-    onCreateInvoice(newInvoice);
-    setIsOpenNewInvoiceModal(false);
-    setIsGstEnabled(true); // reset toggle for next invoice
+    try {
+      setIsSavingInvoice(true);
+      await onCreateInvoice(newInvoice);
+      addToast('success', 'Invoice saved successfully.');
+      setIsOpenNewInvoiceModal(false);
+      setIsGstEnabled(true); // reset toggle for next invoice
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to save invoice.';
+      console.error('Failed to create invoice:', error);
+      addToast('error', message, 7000);
+    } finally {
+      setIsSavingInvoice(false);
+    }
   };
 
   const handleRecordPaymentSubmit = (e: React.FormEvent) => {
@@ -281,9 +374,13 @@ export const BillingModule: React.FC<BillingModuleProps> = ({
           <p className="text-2xl font-extrabold text-indigo-500 mt-1">{formatRupee(totalNonGstSales)}</p>
         </div>
         <div className="bg-[#141414] border border-white/10 p-4 rounded-2xl">
-          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-rose-500">Pending Receivables</span>
-          <p className="text-2xl font-extrabold text-rose-500 mt-1">{formatRupee(totalUnpaid)}</p>
-        </div>
+  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-rose-500">
+    Pending Receivables
+  </span>
+  <p className="text-2xl font-extrabold text-rose-500 mt-1">
+    {formatRupee(totalPendingReceivables)}
+  </p>
+</div>
       </div>
 
       {/* Filter & Search */}
@@ -385,34 +482,45 @@ export const BillingModule: React.FC<BillingModuleProps> = ({
                   <td className="p-4 font-extrabold text-white">
                     {formatRupee(inv.grandTotal)}
                   </td>
-                  <td className="p-4">
-                    <span
-                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                        inv.status === 'Paid'
-                          ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
-                          : inv.status === 'Partially Paid'
-                          ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30'
-                          : 'bg-rose-500/15 text-rose-500 border border-rose-500/30'
-                      }`}
-                    >
-                      {inv.status}
-                    </span>
-                  </td>
+                <td className="p-4">
+  {(() => {
+    const paymentStatus = getPaymentStatus(inv);
+
+    return (
+      <span
+        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+          paymentStatus === 'Paid'
+            ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
+            : paymentStatus === 'Partially Paid'
+            ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30'
+            : 'bg-rose-500/15 text-rose-500 border border-rose-500/30'
+        }`}
+      >
+        {paymentStatus}
+      </span>
+    );
+  })()}
+</td>
                   <td className="p-4 text-right space-x-2">
-                    {inv.status !== 'Paid' && (
-                      <button
-                        onClick={() => {
-                          setSelectedInvoiceForPayment(inv);
-                          setPaymentAmountInput(inv.grandTotal - inv.paidAmount);
-                          setPaymentModeInput('UPI');
-                          setPaymentDateInput(new Date().toISOString().split('T')[0]);
-                          setPaymentRemarksInput('');
-                        }}
-                        className="px-3 py-1 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 font-bold rounded-full border border-emerald-500/30 text-[10px] uppercase tracking-wider transition"
-                      >
-                        + Record Payment
-                      </button>
-                    )}
+                {getPaymentStatus(inv) !== 'Paid' && (
+  <button
+    onClick={() => {
+      setSelectedInvoiceForPayment(inv);
+      setPaymentAmountInput(
+        Math.max(
+          0,
+          Number(inv.grandTotal || 0) - Number(inv.paidAmount || 0)
+        )
+      );
+      setPaymentModeInput('UPI');
+      setPaymentDateInput(new Date().toISOString().split('T')[0]);
+      setPaymentRemarksInput('');
+    }}
+    className="px-3 py-1 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 font-bold rounded-full border border-emerald-500/30 text-[10px] uppercase tracking-wider transition"
+  >
+    + Record Payment
+  </button>
+)}
                     <button
                       onClick={() => setSelectedInvoiceForHistory(inv)}
                       className="p-2 bg-[#1a1a1a] hover:bg-white/10 text-sky-500 rounded-full transition border border-white/10"
@@ -464,7 +572,7 @@ export const BillingModule: React.FC<BillingModuleProps> = ({
                 </label>
                 <input
                   type="number"
-                  value={paymentAmountInput}
+                  value={paymentAmountInput === 0 ? '' : paymentAmountInput}
                   onChange={(e) => setPaymentAmountInput(parseFloat(e.target.value) || 0)}
                   className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl p-2.5 text-white font-bold text-base focus:outline-none focus:border-blue-500"
                   required
@@ -563,7 +671,7 @@ export const BillingModule: React.FC<BillingModuleProps> = ({
                     className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl p-2.5 text-white focus:outline-none focus:border-blue-500"
                   >
                     {parties
-                      .filter((p) => p.type === 'Customer')
+                      .filter((p) => p.type === 'Customer' && !p.isBlocked)
                       .map((p) => (
                         <option key={p.id} value={p.id}>
                           {p.name} ({p.state})
@@ -741,7 +849,7 @@ export const BillingModule: React.FC<BillingModuleProps> = ({
                           <input
                             type="number"
                             min="1"
-                            value={item.meters}
+                            value={item.meters === 0 ? '' : item.meters}
                             onChange={(e) => handleItemChange(idx, 'meters', parseFloat(e.target.value) || 0)}
                             className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg p-2 text-white font-bold text-xs focus:outline-none focus:border-blue-500"
                             required
@@ -755,7 +863,7 @@ export const BillingModule: React.FC<BillingModuleProps> = ({
                           <input
                             type="number"
                             min="0"
-                            value={item.discount || 0}
+                            value={item.discount === 0 ? '' : item.discount}
                             onChange={(e) => handleItemChange(idx, 'discount', parseFloat(e.target.value) || 0)}
                             className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg p-2 text-white text-xs focus:outline-none focus:border-blue-500"
                           />
@@ -804,9 +912,14 @@ export const BillingModule: React.FC<BillingModuleProps> = ({
                 </button>
                 <button
                   type="submit"
+                  disabled={isSavingInvoice}
                   className="px-5 py-2.5 rounded-full text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white uppercase tracking-wider shadow-lg shadow-blue-500/20"
                 >
-                  {isGstEnabled ? 'Generate Tax Invoice' : 'Generate Invoice'}
+                  {isSavingInvoice
+                    ? 'Saving...'
+                    : isGstEnabled
+                      ? 'Generate Tax Invoice'
+                      : 'Generate Invoice'}
                 </button>
               </div>
             </form>

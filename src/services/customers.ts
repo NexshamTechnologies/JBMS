@@ -89,10 +89,12 @@ function mapPartyToRow(
       is_blocked: party.isBlocked,
     }),
 
-    customer_type:
-      party.gstin && party.gstin.length > 0
-        ? "GST"
-        : "Non-GST",
+    ...(party.gstin !== undefined && {
+      customer_type:
+        party.gstin && party.gstin.length > 0
+          ? "GST"
+          : "Non-GST",
+    }),
   };
 }
 

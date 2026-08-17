@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
 import {
   Settings,
   Building2,
@@ -18,6 +19,14 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { UserRole } from '../types';
+import {
+  getCompanySettings,
+  updateCompanySettings,
+  getInvoiceSettings,
+  updateInvoiceSettings,
+  getSystemSettings,
+  updateSystemSettings,
+} from '../services/settings';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -78,11 +87,7 @@ const INITIAL_SYSTEM: SystemSettings = {
   dateFormat: 'DD/MM/YYYY',
 };
 
-const INITIAL_USERS: AppUser[] = [
-  { id: 'U-001', name: 'Owner Admin',      email: 'owner@jaishivbms.local', role: 'Owner',      isActive: true,  lastLogin: '2025-07-30' },
-  { id: 'U-002', name: 'Rahul Chauhan',    email: 'rahul@jaishivbms.local', role: 'Rahul',      isActive: true,  lastLogin: '2025-07-29' },
-  { id: 'U-003', name: 'Accountant User',  email: 'accountant@jaishivbms.local', role: 'Accountant', isActive: true,  lastLogin: '2025-07-28' },
-];
+
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -114,20 +119,93 @@ export const SettingsModule: React.FC = () => {
   // Company state
   const [company, setCompany] = useState<CompanySettings>({ ...INITIAL_COMPANY });
   const [companySaved, setCompanySaved] = useState(false);
-  const saveCompany = () => { setCompanySaved(true); setTimeout(() => setCompanySaved(false), 2000); };
+const saveCompany = async () => {
+  try {
+    await updateCompanySettings({
+      company_name: company.name,
+      address: company.address,
+      gst_number: company.gstin,
+      pan: company.pan,
+      logo_url: company.logoUrl,
+      invoice_prefix: invoice.prefix,
+      phone: company.phone,
+      email: company.email,
+    });
+
+    setCompanySaved(true);
+
+    setTimeout(() => {
+      setCompanySaved(false);
+    }, 2000);
+  } catch (error) {
+    console.error("Failed to save company settings:", error);
+
+    alert(
+      error instanceof Error
+        ? error.message
+        : "Failed to save company settings."
+    );
+  }
+};
 
   // Invoice state
   const [invoice, setInvoice] = useState<InvoiceSettings>({ ...INITIAL_INVOICE });
   const [invoiceSaved, setInvoiceSaved] = useState(false);
-  const saveInvoice = () => { setInvoiceSaved(true); setTimeout(() => setInvoiceSaved(false), 2000); };
+ const saveInvoice = async () => {
+  try {
+    await updateInvoiceSettings({
+      prefix: invoice.prefix,
+      number_format: invoice.numberFormat,
+      default_gst_mode: invoice.defaultGstMode,
+      footer_text: invoice.footerText,
+    });
+
+    setInvoiceSaved(true);
+
+    setTimeout(() => {
+      setInvoiceSaved(false);
+    }, 2000);
+  } catch (error) {
+    console.error("Failed to save invoice settings:", error);
+    alert(
+      error instanceof Error
+        ? error.message
+        : "Failed to save invoice settings."
+    );
+  }
+};
 
   // System state
   const [system, setSystem] = useState<SystemSettings>({ ...INITIAL_SYSTEM });
   const [systemSaved, setSystemSaved] = useState(false);
-  const saveSystem = () => { setSystemSaved(true); setTimeout(() => setSystemSaved(false), 2000); };
+const saveSystem = async () => {
+  try {
+    await updateSystemSettings({
+      theme: system.theme,
+      currency: system.currency,
+      date_format: system.dateFormat,
+    });
+
+    setSystemSaved(true);
+
+    setTimeout(() => {
+      setSystemSaved(false);
+    }, 2000);
+  } catch (error) {
+    console.error("Failed to save system settings:", error);
+    alert(
+      error instanceof Error
+        ? error.message
+        : "Failed to save system settings."
+    );
+  }
+};
 
   // User management state
-  const [users, setUsers] = useState<AppUser[]>(INITIAL_USERS);
+const [users, setUsers] = useState<AppUser[]>([]);
+const [usersLoading, setUsersLoading] = useState(true);
+const [userError, setUserError] = useState('');
+  const [settingsLoading, setSettingsLoading] = useState(true);
   const [userModal, setUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState<AppUser | null>(null);
   const [pwdModal, setPwdModal] = useState<AppUser | null>(null);
@@ -138,38 +216,229 @@ export const SettingsModule: React.FC = () => {
 
   const emptyUser = { name: '', email: '', password: '', role: 'Rahul' as UserRole };
   const [userForm, setUserForm] = useState({ ...emptyUser });
+const loadUsers = async () => {
+  try {
+    setUsersLoading(true);
+    setUserError('');
 
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, name, email, role, is_active, created_at')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    const mappedUsers: AppUser[] = (data ?? []).map((profile) => ({
+      id: profile.id,
+      name: profile.name,
+      email: profile.email ?? '—',
+      role: profile.role as UserRole,
+      isActive: profile.is_active ?? true,
+      lastLogin: '—',
+    }));
+
+    setUsers(mappedUsers);
+  } catch (error) {
+    console.error('Failed to load users:', error);
+
+    setUserError(
+      error instanceof Error
+        ? error.message
+        : 'Failed to load users.'
+    );
+  } finally {
+    setUsersLoading(false);
+  }
+};
+
+useEffect(() => {
+  void loadUsers();
+}, []);
   const openAddUser = () => { setUserForm({ ...emptyUser }); setEditingUser(null); setUserModal(true); };
   const openEditUser = (u: AppUser) => { setUserForm({ name: u.name, email: u.email, password: '', role: u.role }); setEditingUser(u); setUserModal(true); };
 
-  const handleUserSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editingUser) {
-      setUsers(users.map(u => u.id === editingUser.id ? { ...u, name: userForm.name, email: userForm.email, role: userForm.role } : u));
-    } else {
-      const newUser: AppUser = {
-        id: `U-${Date.now()}`,
-        name: userForm.name,
-        email: userForm.email,
+
+
+const handleUserSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  try {
+    setUserError('');
+
+if (editingUser) {
+  const { data, error } = await supabase.functions.invoke(
+    'manage-user',
+    {
+      body: {
+        action: 'update',
+        userId: editingUser.id,
+        name: userForm.name.trim(),
         role: userForm.role,
-        isActive: true,
-        lastLogin: '—',
-      };
-      setUsers([...users, newUser]);
+      },
     }
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data?.success) {
+    throw new Error(
+      data?.error || 'Failed to update user.'
+    );
+  }
+
+  await loadUsers();
+  setUserModal(false);
+  return;
+}
+
+    const { data, error } = await supabase.functions.invoke(
+      'create-user',
+      {
+        body: {
+          name: userForm.name.trim(),
+          email: userForm.email.trim().toLowerCase(),
+          password: userForm.password,
+          role: userForm.role,
+        },
+      }
+    );
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data?.success) {
+      throw new Error(
+        data?.error || 'Failed to create user.'
+      );
+    }
+
+    await loadUsers();
+
     setUserModal(false);
-  };
 
-  const toggleUserActive = (id: string) => {
-    setUsers(users.map(u => u.id === id ? { ...u, isActive: !u.isActive } : u));
-  };
+    setUserForm({
+      ...emptyUser,
+    });
 
-  const handleChangePwd = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPwd.length < 6) { setPwdError('Password must be at least 6 characters.'); return; }
-    if (newPwd !== confirmPwd) { setPwdError('Passwords do not match.'); return; }
-    setPwdModal(null); setNewPwd(''); setConfirmPwd(''); setPwdError('');
-  };
+  } catch (error) {
+    console.error('User operation failed:', error);
+
+    setUserError(
+      error instanceof Error
+        ? error.message
+        : 'Failed to create/update user.'
+    );
+  }
+};
+
+
+
+const toggleUserActive = async (id: string) => {
+  try {
+    setUserError('');
+
+    const currentUser = users.find((u) => u.id === id);
+
+    if (!currentUser) {
+      return;
+    }
+
+    const { data, error } = await supabase.functions.invoke(
+      'manage-user',
+      {
+        body: {
+          action: 'toggle-active',
+          userId: id,
+          isActive: !currentUser.isActive,
+        },
+      }
+    );
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data?.success) {
+      throw new Error(
+        data?.error || 'Failed to update user status.'
+      );
+    }
+
+    await loadUsers();
+
+  } catch (error) {
+    console.error('Failed to update user status:', error);
+
+    setUserError(
+      error instanceof Error
+        ? error.message
+        : 'Failed to update user status.'
+    );
+  }
+};
+
+
+
+const handleChangePwd = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  setPwdError('');
+
+  if (!pwdModal) {
+    return;
+  }
+
+  if (newPwd.length < 6) {
+    setPwdError('Password must be at least 6 characters.');
+    return;
+  }
+
+  if (newPwd !== confirmPwd) {
+    setPwdError('Passwords do not match.');
+    return;
+  }
+
+  try {
+    const { data, error } = await supabase.functions.invoke(
+      'manage-user',
+      {
+        body: {
+          action: 'reset-password',
+          userId: pwdModal.id,
+          password: newPwd,
+        },
+      }
+    );
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data?.success) {
+      throw new Error(
+        data?.error || 'Failed to reset password.'
+      );
+    }
+
+    setPwdModal(null);
+    setNewPwd('');
+    setConfirmPwd('');
+    setPwdError('');
+  } catch (error) {
+    console.error('Failed to reset password:', error);
+
+    setPwdError(
+      error instanceof Error
+        ? error.message
+        : 'Failed to reset password.'
+    );
+  }
+};
 
   const TABS: { id: SettingsTab; label: string; icon: React.ElementType }[] = [
     { id: 'company', label: 'Company',  icon: Building2 },
@@ -177,6 +446,68 @@ export const SettingsModule: React.FC = () => {
     { id: 'users',   label: 'User Management', icon: Users },
     { id: 'system',  label: 'System',   icon: Monitor   },
   ];
+
+
+
+  useEffect(() => {
+  const loadSettings = async () => {
+    try {
+      setSettingsLoading(true);
+
+      const [
+        companyData,
+        invoiceData,
+        systemData,
+      ] = await Promise.all([
+        getCompanySettings(),
+        getInvoiceSettings(),
+        getSystemSettings(),
+      ]);
+
+      // -----------------------------------------
+      // Company
+      // -----------------------------------------
+
+      setCompany({
+        name: companyData.company_name ?? '',
+        address: companyData.address ?? '',
+        gstin: companyData.gst_number ?? '',
+        pan: companyData.pan ?? '',
+        phone: companyData.phone ?? '',
+        email: companyData.email ?? '',
+        logoUrl: companyData.logo_url ?? '',
+      });
+
+      // -----------------------------------------
+      // Invoice
+      // -----------------------------------------
+
+      setInvoice({
+        prefix: invoiceData.prefix,
+        numberFormat: invoiceData.number_format,
+        defaultGstMode: invoiceData.default_gst_mode,
+        footerText: invoiceData.footer_text,
+      });
+
+      // -----------------------------------------
+      // System
+      // -----------------------------------------
+
+      setSystem({
+        theme: systemData.theme,
+        currency: systemData.currency,
+        dateFormat: systemData.date_format,
+      });
+
+    } catch (error) {
+      console.error("Failed to load settings:", error);
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  void loadSettings();
+}, []);
 
   return (
     <div className="space-y-6">
@@ -312,6 +643,18 @@ export const SettingsModule: React.FC = () => {
         ══════════════════════════════════════ */}
         {tab === 'users' && (
           <div className="p-6 space-y-4">
+            {userError && (
+  <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs">
+    <span>{userError}</span>
+
+    <button
+      onClick={() => setUserError('')}
+      className="text-rose-400 hover:text-white"
+    >
+      <X className="w-4 h-4" />
+    </button>
+  </div>
+)}
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
@@ -339,41 +682,99 @@ export const SettingsModule: React.FC = () => {
                     <th className="p-3.5 text-right">Owner Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
-                  {users.map(u => (
-                    <tr key={u.id} className="hover:bg-white/5 transition">
-                      <td className="p-3.5">
-                        <p className="font-bold text-white">{u.name}</p>
-                        <p className="text-[10px] text-[#d1d1d1]/40">{u.email}</p>
-                      </td>
-                      <td className="p-3.5 text-center">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider ${roleColors[u.role]}`}>
-                          {u.role}
-                        </span>
-                      </td>
-                      <td className="p-3.5 text-center text-[#d1d1d1]/50">{u.lastLogin}</td>
-                      <td className="p-3.5 text-center">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider ${u.isActive ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-500 border border-rose-500/30'}`}>
-                          {u.isActive ? 'Active' : 'Deactivated'}
-                        </span>
-                      </td>
-                      <td className="p-3.5 text-right space-x-1.5">
-                        <button onClick={() => openEditUser(u)} title="Assign Role / Edit User"
-                          className="p-1.5 bg-[#1a1a1a] hover:bg-white/10 text-blue-500 rounded-full border border-white/5 transition">
-                          <Edit className="w-3.5 h-3.5" />
-                        </button>
-                        <button onClick={() => { setPwdModal(u); setNewPwd(''); setConfirmPwd(''); setPwdError(''); }} title="Reset Password"
-                          className="p-1.5 bg-[#1a1a1a] hover:bg-white/10 text-sky-500 rounded-full border border-white/5 transition">
-                          <Lock className="w-3.5 h-3.5" />
-                        </button>
-                        <button onClick={() => toggleUserActive(u.id)} title={u.isActive ? 'Deactivate Account' : 'Activate Account'}
-                          className={`p-1.5 bg-[#1a1a1a] hover:bg-white/10 rounded-full border border-white/5 transition ${u.isActive ? 'text-rose-500' : 'text-emerald-500'}`}>
-                          {u.isActive ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
+       <tbody className="divide-y divide-white/5">
+  {usersLoading ? (
+    <tr>
+      <td
+        colSpan={5}
+        className="p-8 text-center text-[#d1d1d1]/40"
+      >
+        Loading users...
+      </td>
+    </tr>
+  ) : users.length === 0 ? (
+    <tr>
+      <td
+        colSpan={5}
+        className="p-8 text-center text-[#d1d1d1]/40"
+      >
+        No users found.
+      </td>
+    </tr>
+  ) : (
+    users.map(u => (
+      <tr key={u.id} className="hover:bg-white/5 transition">
+        <td className="p-3.5">
+          <p className="font-bold text-white">{u.name}</p>
+          <p className="text-[10px] text-[#d1d1d1]/40">
+            {u.email}
+          </p>
+        </td>
+
+        <td className="p-3.5 text-center">
+          <span
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider ${roleColors[u.role]}`}
+          >
+            {u.role}
+          </span>
+        </td>
+
+        <td className="p-3.5 text-center text-[#d1d1d1]/50">
+          {u.lastLogin}
+        </td>
+
+        <td className="p-3.5 text-center">
+          <span
+            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider ${
+              u.isActive
+                ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
+                : 'bg-rose-500/15 text-rose-500 border border-rose-500/30'
+            }`}
+          >
+            {u.isActive ? 'Active' : 'Deactivated'}
+          </span>
+        </td>
+
+        <td className="p-3.5 text-right space-x-1.5">
+          <button
+            onClick={() => openEditUser(u)}
+            title="Assign Role / Edit User"
+            className="p-1.5 bg-[#1a1a1a] hover:bg-white/10 text-blue-500 rounded-full border border-white/5 transition"
+          >
+            <Edit className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            onClick={() => {
+              setPwdModal(u);
+              setNewPwd('');
+              setConfirmPwd('');
+              setPwdError('');
+            }}
+            title="Reset Password"
+            className="p-1.5 bg-[#1a1a1a] hover:bg-white/10 text-sky-500 rounded-full border border-white/5 transition"
+          >
+            <Lock className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            onClick={() => toggleUserActive(u.id)}
+            title={u.isActive ? 'Deactivate Account' : 'Activate Account'}
+            className={`p-1.5 bg-[#1a1a1a] hover:bg-white/10 rounded-full border border-white/5 transition ${
+              u.isActive ? 'text-rose-500' : 'text-emerald-500'
+            }`}
+          >
+            {u.isActive ? (
+              <UserX className="w-3.5 h-3.5" />
+            ) : (
+              <UserCheck className="w-3.5 h-3.5" />
+            )}
+          </button>
+        </td>
+      </tr>
+    ))
+  )}
+</tbody>
               </table>
             </div>
           </div>
@@ -439,6 +840,7 @@ export const SettingsModule: React.FC = () => {
           <div className="bg-[#141414] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl p-6 text-[#d1d1d1]">
             <div className="flex justify-between items-start border-b border-white/10 pb-4 mb-5">
               <div>
+
                 <span className="text-[10px] font-bold text-blue-500 uppercase tracking-[0.25em]">{editingUser ? 'Owner Action: Edit User' : 'Owner Action: Create User'}</span>
                 <h3 className="text-xl font-serif italic text-white mt-1">{editingUser ? editingUser.name : 'Create Team User'}</h3>
               </div>

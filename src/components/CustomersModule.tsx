@@ -182,9 +182,6 @@ const handleSubmit = async (
                       <button onClick={() => openEdit(c)} className="p-1.5 bg-[#1a1a1a] hover:bg-white/10 text-blue-500 rounded-full transition border border-white/5 mr-2" title="Edit">
                         <Edit className="w-4 h-4" />
                       </button>
-                      <button onClick={() => { setDeletePartyId(c.id); setConfirmOpen(true); }} className="p-1.5 bg-[#1a1a1a] hover:bg-white/10 text-rose-400 rounded-full transition border border-white/5 mr-2" title="Delete">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
                       <button onClick={() => onToggleBlock(c.id)} className="p-1.5 bg-[#1a1a1a] hover:bg-white/10 text-amber-400 rounded-full transition border border-white/5" title="Block/Unblock">
                         {((c as any).isBlocked) ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                       </button>
@@ -255,22 +252,7 @@ const handleSubmit = async (
         </div>
           </>
         )}
-      {/* Confirmation Dialog */}
-      <ConfirmDialog
-        isOpen={confirmOpen}
-        title="Delete Customer"
-        description="Are you sure you want to delete this customer? This action cannot be undone."
-        danger={true}
-        onCancel={() => { setConfirmOpen(false); setDeletePartyId(null); }}
-        onConfirm={async() => {
-          if (deletePartyId) {
-            await onDeleteParty(deletePartyId);
-            addToast('success', 'Customer deleted');
-          }
-          setConfirmOpen(false);
-          setDeletePartyId(null);
-        }}
-      />
+
 
       {/* Profile Modal */}
       {profileParty && (

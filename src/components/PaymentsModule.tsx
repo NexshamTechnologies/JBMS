@@ -11,11 +11,18 @@ import {
   Filter,
   IndianRupee
 } from 'lucide-react';
-import { Payment, PaymentMode, PaymentStatus, Party } from '../types';
+import {
+  Payment,
+  PaymentMode,
+  PaymentStatus,
+  Party,
+  Invoice
+} from '../types';
 
 interface PaymentsModuleProps {
   payments: Payment[];
   parties: Party[];
+  invoices: Invoice[];
   onAddPayment: (payment: Payment) => void;
   onUpdatePayment: (payment: Payment) => void;
   onDeletePayment: (paymentId: string) => void;
@@ -47,13 +54,14 @@ const fmt = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 export const PaymentsModule: React.FC<PaymentsModuleProps> = ({
   payments,
   parties,
+  invoices,
   onAddPayment,
   onUpdatePayment,
   onDeletePayment,
   searchTerm,
   setSearchTerm,
 }) => {
-  const customers = parties.filter(p => p.type === 'Customer');
+  const customers = parties.filter(p => p.type === 'Customer' && !p.isBlocked);
 
   // Filters
   const [filterMode, setFilterMode] = useState<PaymentMode | ''>('');
@@ -145,18 +153,231 @@ export const PaymentsModule: React.FC<PaymentsModuleProps> = ({
   }, [payments, searchTerm, filterMode, filterParty, filterDateFrom, filterDateTo]);
 
   // Summary stats
-  const totalCollected = payments
-    .filter(p => p.status === 'Completed')
-    .reduce((s, p) => s + p.amount, 0);
-  const totalPending = payments
-    .filter(p => p.status === 'Pending')
-    .reduce((s, p) => s + p.amount, 0);
-  const totalAdvance = payments
-    .filter(p => p.status === 'Advance')
-    .reduce((s, p) => s + p.amount, 0);
-  const totalPartial = payments
-    .filter(p => p.status === 'Partial')
-    .reduce((s, p) => s + p.amount, 0);
+// ------------------------------------------------------------
+// Summary stats
+//
+// IMPORTANT:
+// Payment status alone is not enough to determine whether
+// money is currently an advance or a partial payment.
+//
+// A payment without an invoice reference is treated as a
+// customer advance. That advance is automatically consumed
+// against outstanding invoices, oldest first.
+//
+// This keeps Payment Management consistent with:
+// Billing + Customer Ledger.
+// ------------------------------------------------------------
+
+// ------------------------------------------------------------
+// 1. Total collected
+//
+// Every non-pending payment represents money actually received.
+// ------------------------------------------------------------
+
+const totalCollected = payments
+  .filter(p => p.status !== 'Pending')
+  .reduce(
+    (sum, p) => sum + Number(p.amount || 0),
+    0
+  );
+
+// ------------------------------------------------------------
+// 2. Pending payments
+// ------------------------------------------------------------
+
+const totalPending = payments
+  .filter(p => p.status === 'Pending')
+  .reduce(
+    (sum, p) => sum + Number(p.amount || 0),
+    0
+  );
+
+// ------------------------------------------------------------
+// 3. Build invoice payment map
+//
+// Explicit invoice-linked payments are applied first.
+// ------------------------------------------------------------
+
+const invoicePaidMap = new Map<string, number>();
+
+payments
+  .filter(
+    p =>
+      p.status !== 'Pending' &&
+      p.invoiceNumber
+  )
+  .forEach(p => {
+    const key =
+      `${p.partyId}-${p.invoiceNumber!
+        .trim()
+        .toLowerCase()}`;
+
+    invoicePaidMap.set(
+      key,
+      (invoicePaidMap.get(key) || 0) +
+        Number(p.amount || 0)
+    );
+  });
+
+// ------------------------------------------------------------
+// 4. Customer advance pools
+//
+// Payments without an invoice reference are advances.
+// ------------------------------------------------------------
+
+const advancesByCustomer = new Map<string, number>();
+
+payments
+  .filter(
+    p =>
+      p.status !== 'Pending' &&
+      !p.invoiceNumber
+  )
+  .forEach(p => {
+    advancesByCustomer.set(
+      p.partyId,
+      (advancesByCustomer.get(p.partyId) || 0) +
+        Number(p.amount || 0)
+    );
+  });
+
+// ------------------------------------------------------------
+// 5. Sort invoices oldest first
+//
+// Advance is consumed against older invoices first.
+// ------------------------------------------------------------
+
+const sortedInvoices = [...invoices].sort((a, b) => {
+  const dateCompare =
+    a.date.localeCompare(b.date);
+
+  if (dateCompare !== 0) {
+    return dateCompare;
+  }
+
+  return a.invoiceNumber.localeCompare(
+    b.invoiceNumber
+  );
+});
+
+// ------------------------------------------------------------
+// 6. Apply advances to outstanding invoices
+// ------------------------------------------------------------
+
+const remainingAdvance = new Map(
+  advancesByCustomer
+);
+
+const finalInvoicePaidMap = new Map(
+  invoicePaidMap
+);
+
+sortedInvoices.forEach(invoice => {
+
+  const key =
+    `${invoice.partyId}-${invoice.invoiceNumber
+      .trim()
+      .toLowerCase()}`;
+
+  const alreadyPaid =
+    finalInvoicePaidMap.get(key) || 0;
+
+  const invoiceTotal =
+    Number(invoice.grandTotal || 0);
+
+  const outstanding =
+    Math.max(
+      invoiceTotal - alreadyPaid,
+      0
+    );
+
+  if (
+    outstanding <= 0
+  ) {
+    return;
+  }
+
+  const availableAdvance =
+    remainingAdvance.get(invoice.partyId) || 0;
+
+  if (
+    availableAdvance <= 0
+  ) {
+    return;
+  }
+
+  const allocation =
+    Math.min(
+      outstanding,
+      availableAdvance
+    );
+
+  finalInvoicePaidMap.set(
+    key,
+    alreadyPaid + allocation
+  );
+
+  remainingAdvance.set(
+    invoice.partyId,
+    availableAdvance - allocation
+  );
+});
+
+// ------------------------------------------------------------
+// 7. Currently available advance
+//
+// This is what remains AFTER automatic invoice allocation.
+// ------------------------------------------------------------
+
+const totalAdvance =
+  Array.from(remainingAdvance.values())
+    .reduce(
+      (sum, amount) => sum + amount,
+      0
+    );
+
+// ------------------------------------------------------------
+// 8. Currently partially-paid invoices
+//
+// We count the amount actually received against invoices
+// that are STILL partially unpaid.
+//
+// Example:
+// Invoice ₹100
+// Paid ₹40
+//
+// Partial Payments = ₹40
+//
+// If another ₹60 is received:
+// Invoice becomes Paid
+// Partial Payments = ₹0
+// ------------------------------------------------------------
+
+const totalPartial = invoices.reduce(
+  (sum, invoice) => {
+
+    const key =
+      `${invoice.partyId}-${invoice.invoiceNumber
+        .trim()
+        .toLowerCase()}`;
+
+    const paidAmount =
+      finalInvoicePaidMap.get(key) || 0;
+
+    const invoiceTotal =
+      Number(invoice.grandTotal || 0);
+
+    if (
+      paidAmount > 0 &&
+      paidAmount < invoiceTotal
+    ) {
+      return sum + paidAmount;
+    }
+
+    return sum;
+  },
+  0
+);
 
   const clearFilters = () => {
     setFilterMode('');
@@ -182,20 +403,7 @@ export const PaymentsModule: React.FC<PaymentsModuleProps> = ({
         </button>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'Total Collected', value: totalCollected, color: 'text-emerald-500', border: 'border-emerald-500/20' },
-          { label: 'Pending Payments', value: totalPending, color: 'text-amber-500', border: 'border-amber-500/20' },
-          { label: 'Advance Received', value: totalAdvance, color: 'text-indigo-500', border: 'border-indigo-500/20' },
-          { label: 'Partial Payments', value: totalPartial, color: 'text-blue-500', border: 'border-blue-500/20' },
-        ].map(card => (
-          <div key={card.label} className={`bg-[#141414] border ${card.border} rounded-2xl p-4 shadow`}>
-            <p className="text-[10px] uppercase tracking-widest text-[#d1d1d1]/50 mb-1">{card.label}</p>
-            <p className={`text-xl font-bold ${card.color}`}>{fmt(card.value)}</p>
-          </div>
-        ))}
-      </div>
+   
 
       {/* Search & Filter */}
       <div className="bg-[#141414] border border-white/10 p-4 rounded-2xl space-y-3">
@@ -444,7 +652,7 @@ export const PaymentsModule: React.FC<PaymentsModuleProps> = ({
                     <input
                       type="number"
                       min="1"
-                      value={form.amount}
+                      value={form.amount === 0 ? '' : form.amount}
                       onChange={e => setForm({ ...form, amount: Number(e.target.value) })}
                       required
                       className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl p-2.5 pl-8 text-white focus:border-blue-500 focus:outline-none"
