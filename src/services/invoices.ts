@@ -28,7 +28,7 @@ interface InvoiceItemRow {
   line_total: number;
 }
 
-function mapInvoiceItem(row: InvoiceItemRow): InvoiceItem {
+function mapInvoiceItem(row: any): InvoiceItem {
   const gstAmount =
     Number(row.line_total) -
     Math.max(
@@ -40,8 +40,8 @@ function mapInvoiceItem(row: InvoiceItemRow): InvoiceItem {
   return {
     id: String(row.id),
     productId: String(row.product_id),
-    description: "",
-    hsnCode: "",
+    description: row.products?.name ?? "",
+    hsnCode: row.products?.hsn_code ?? "",
     meters: Number(row.quantity),
     rate: Number(row.unit_price),
     discount: Number(row.discount_amount),
@@ -76,7 +76,7 @@ export async function getInvoices(): Promise<Invoice[]> {
     .from(TABLE)
     .select(`
       *,
-      invoice_items (*),
+      invoice_items (*, products (*)),
       customers (*)
     `)
     .order("created_at", {
@@ -227,7 +227,7 @@ export async function getInvoiceById(
     .from(TABLE)
     .select(`
       *,
-      invoice_items (*),
+      invoice_items (*, products (*)),
       customers (*)
     `)
     .eq("id", invoiceId)

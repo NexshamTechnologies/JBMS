@@ -604,7 +604,9 @@ export const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({
             </div>
 
           </div>
-
+          <div className="text-center text-[7.5px] text-slate-400 pb-3.5 font-bold uppercase tracking-wider print:text-slate-500">
+            Powered by Nexsham Technologies
+          </div>
         </div>
       </div>
     </div>
