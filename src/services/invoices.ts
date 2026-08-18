@@ -453,3 +453,26 @@ export async function createInvoice(
     isGstInvoice: invoiceData.is_gst,
   };
 }
+
+export async function getNextInvoiceNumber(fyPrefix: string): Promise<string> {
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select("invoice_number")
+    .like("invoice_number", `${fyPrefix}%`);
+
+  if (error) {
+    throw new Error(`Failed to check existing invoice numbers: ${error.message}`);
+  }
+
+  let maxNum = 0;
+  (data ?? []).forEach((row: any) => {
+    const suffix = row.invoice_number.substring(fyPrefix.length);
+    const num = parseInt(suffix, 10);
+    if (!isNaN(num) && num > maxNum) {
+      maxNum = num;
+    }
+  });
+
+  return `${fyPrefix}${maxNum + 1}`;
+}
+

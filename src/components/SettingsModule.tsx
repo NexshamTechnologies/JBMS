@@ -16,7 +16,8 @@ import {
   UserX,
   Upload,
   Lock,
-  ShieldCheck
+  ShieldCheck,
+  IndianRupee
 } from 'lucide-react';
 import { UserRole } from '../types';
 import {
@@ -38,6 +39,12 @@ interface CompanySettings {
   phone: string;
   email: string;
   logoUrl: string;
+  bankName: string;
+  bankBranch: string;
+  accountName: string;
+  accountNumber: string;
+  ifscCode: string;
+  upiId: string;
 }
 
 interface InvoiceSettings {
@@ -65,25 +72,31 @@ export interface AppUser {
 // ─── Mock initial data ────────────────────────────────────────────────────────
 
 const INITIAL_COMPANY: CompanySettings = {
-  name:    'Jai Shiv Textiles',
+  name: 'Jai Shiv Textiles',
   address: '12/A, Ring Road, Near Textile Market, Surat, Gujarat 395002',
-  gstin:   '24AAAFJ1234C1Z5',
-  pan:     'AAAFJ1234C',
-  phone:   '+91 98250 11223',
-  email:   'info@jaishivtextiles.com',
+  gstin: '24AAAFJ1234C1Z5',
+  pan: 'AAAFJ1234C',
+  phone: '+91 98250 11223',
+  email: 'info@jaishivtextiles.com',
   logoUrl: '',
+  bankName: '',
+  bankBranch: '',
+  accountName: '',
+  accountNumber: '',
+  ifscCode: '',
+  upiId: '',
 };
 
 const INITIAL_INVOICE: InvoiceSettings = {
-  prefix:         'JS',
-  numberFormat:   'JS/YY-YY/####',
+  prefix: 'JS',
+  numberFormat: 'JS/YY-YY/####',
   defaultGstMode: 'CGST+SGST',
-  footerText:     'Thank you for your business. Goods once sold will not be taken back. Subject to Surat jurisdiction.',
+  footerText: 'Thank you for your business. Goods once sold will not be taken back. Subject to Surat jurisdiction.',
 };
 
 const INITIAL_SYSTEM: SystemSettings = {
-  theme:      'dark',
-  currency:   'INR',
+  theme: 'dark',
+  currency: 'INR',
   dateFormat: 'DD/MM/YYYY',
 };
 
@@ -104,107 +117,128 @@ const inputCls = "w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-3 py-
 const selectCls = "w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-blue-500 transition";
 
 const roleColors: Record<UserRole, string> = {
-  Owner:      'bg-blue-500/15 text-blue-500 border border-blue-500/30',
-  Rahul:      'bg-purple-500/15 text-purple-500 border border-purple-500/30',
+  Owner: 'bg-blue-500/15 text-blue-500 border border-blue-500/30',
+  Rahul: 'bg-purple-500/15 text-purple-500 border border-purple-500/30',
   Accountant: 'bg-sky-500/15 text-sky-500 border border-sky-500/30',
 };
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-type SettingsTab = 'company' | 'invoice' | 'users' | 'system';
+type SettingsTab = 'company' | 'invoice' | 'accounts' | 'users' | 'system';
 
 export const SettingsModule: React.FC = () => {
   const [tab, setTab] = useState<SettingsTab>('company');
 
-  // Company state
-  const [company, setCompany] = useState<CompanySettings>({ ...INITIAL_COMPANY });
+  // Company states (GST vs Non-GST company profiles)
+  const [gstCompany, setGstCompany] = useState<CompanySettings>({ ...INITIAL_COMPANY });
+  const [nonGstCompany, setNonGstCompany] = useState<CompanySettings>({ ...INITIAL_COMPANY });
+  const [companyMode, setCompanyMode] = useState<'gst' | 'nongst'>('gst');
   const [companySaved, setCompanySaved] = useState(false);
-const saveCompany = async () => {
-  try {
-    await updateCompanySettings({
-      company_name: company.name,
-      address: company.address,
-      gst_number: company.gstin,
-      pan: company.pan,
-      logo_url: company.logoUrl,
-      invoice_prefix: invoice.prefix,
-      phone: company.phone,
-      email: company.email,
-    });
 
-    setCompanySaved(true);
+  const company = companyMode === 'gst' ? gstCompany : nonGstCompany;
+  const setCompany = (updated: CompanySettings | ((prev: CompanySettings) => CompanySettings)) => {
+    if (companyMode === 'gst') {
+      setGstCompany(prev => typeof updated === 'function' ? (updated as Function)(prev) : updated);
+    } else {
+      setNonGstCompany(prev => typeof updated === 'function' ? (updated as Function)(prev) : updated);
+    }
+  };
 
-    setTimeout(() => {
-      setCompanySaved(false);
-    }, 2000);
-  } catch (error) {
-    console.error("Failed to save company settings:", error);
+  const saveCompany = async () => {
+    try {
+      const activeId = companyMode === 'gst' ? 1 : 2;
+      const activeCompany = companyMode === 'gst' ? gstCompany : nonGstCompany;
 
-    alert(
-      error instanceof Error
-        ? error.message
-        : "Failed to save company settings."
-    );
-  }
-};
+      await updateCompanySettings(activeId, {
+        company_name: activeCompany.name,
+        address: activeCompany.address,
+        gst_number: activeCompany.gstin,
+        pan: activeCompany.pan,
+        logo_url: activeCompany.logoUrl,
+        invoice_prefix: invoice.prefix,
+        phone: activeCompany.phone,
+        email: activeCompany.email,
+        bank_name: activeCompany.bankName,
+        bank_branch: activeCompany.bankBranch,
+        account_name: activeCompany.accountName,
+        account_number: activeCompany.accountNumber,
+        ifsc_code: activeCompany.ifscCode,
+        upi_id: activeCompany.upiId,
+      });
+
+      setCompanySaved(true);
+
+      setTimeout(() => {
+        setCompanySaved(false);
+      }, 2000);
+    } catch (error) {
+      console.error("Failed to save company settings:", error);
+      const msg = error && typeof error === 'object' && 'message' in error
+        ? String((error as any).message)
+        : error instanceof Error
+          ? error.message
+          : JSON.stringify(error);
+      alert("Failed to save company settings: " + msg);
+    }
+  };
 
   // Invoice state
   const [invoice, setInvoice] = useState<InvoiceSettings>({ ...INITIAL_INVOICE });
   const [invoiceSaved, setInvoiceSaved] = useState(false);
- const saveInvoice = async () => {
-  try {
-    await updateInvoiceSettings({
-      prefix: invoice.prefix,
-      number_format: invoice.numberFormat,
-      default_gst_mode: invoice.defaultGstMode,
-      footer_text: invoice.footerText,
-    });
+  const saveInvoice = async () => {
+    try {
+      await updateInvoiceSettings({
+        prefix: invoice.prefix,
+        number_format: invoice.numberFormat,
+        default_gst_mode: invoice.defaultGstMode,
+        footer_text: invoice.footerText,
+      });
 
-    setInvoiceSaved(true);
+      setInvoiceSaved(true);
 
-    setTimeout(() => {
-      setInvoiceSaved(false);
-    }, 2000);
-  } catch (error) {
-    console.error("Failed to save invoice settings:", error);
-    alert(
-      error instanceof Error
-        ? error.message
-        : "Failed to save invoice settings."
-    );
-  }
-};
+      setTimeout(() => {
+        setInvoiceSaved(false);
+      }, 2000);
+    } catch (error) {
+      console.error("Failed to save invoice settings:", error);
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Failed to save invoice settings."
+      );
+    }
+  };
 
   // System state
   const [system, setSystem] = useState<SystemSettings>({ ...INITIAL_SYSTEM });
   const [systemSaved, setSystemSaved] = useState(false);
-const saveSystem = async () => {
-  try {
-    await updateSystemSettings({
-      theme: system.theme,
-      currency: system.currency,
-      date_format: system.dateFormat,
-    });
+  const saveSystem = async () => {
+    try {
+      await updateSystemSettings({
+        theme: system.theme,
+        currency: system.currency,
+        date_format: system.dateFormat,
+      });
 
-    setSystemSaved(true);
+      setSystemSaved(true);
 
-    setTimeout(() => {
-      setSystemSaved(false);
-    }, 2000);
-  } catch (error) {
-    console.error("Failed to save system settings:", error);
-    alert(
-      error instanceof Error
-        ? error.message
-        : "Failed to save system settings."
-    );
-  }
-};
+      setTimeout(() => {
+        setSystemSaved(false);
+      }, 2000);
+    } catch (error) {
+      console.error("Failed to save system settings:", error);
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Failed to save system settings."
+      );
+    }
+  };
 
   // User management state
-const [users, setUsers] = useState<AppUser[]>([]);
-const [usersLoading, setUsersLoading] = useState(true);
-const [userError, setUserError] = useState('');
+  const [users, setUsers] = useState<AppUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [userError, setUserError] = useState('');
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [userModal, setUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState<AppUser | null>(null);
@@ -216,298 +250,329 @@ const [userError, setUserError] = useState('');
 
   const emptyUser = { name: '', email: '', password: '', role: 'Rahul' as UserRole };
   const [userForm, setUserForm] = useState({ ...emptyUser });
-const loadUsers = async () => {
-  try {
-    setUsersLoading(true);
-    setUserError('');
+  const loadUsers = async () => {
+    try {
+      setUsersLoading(true);
+      setUserError('');
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, name, email, role, is_active, created_at')
-      .order('created_at', { ascending: false });
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name, email, role, is_active, created_at')
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      throw error;
+      if (error) {
+        throw error;
+      }
+
+      const mappedUsers: AppUser[] = (data ?? []).map((profile) => ({
+        id: profile.id,
+        name: profile.name,
+        email: profile.email ?? '—',
+        role: profile.role as UserRole,
+        isActive: profile.is_active ?? true,
+        lastLogin: '—',
+      }));
+
+      setUsers(mappedUsers);
+    } catch (error) {
+      console.error('Failed to load users:', error);
+
+      setUserError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to load users.'
+      );
+    } finally {
+      setUsersLoading(false);
     }
+  };
 
-    const mappedUsers: AppUser[] = (data ?? []).map((profile) => ({
-      id: profile.id,
-      name: profile.name,
-      email: profile.email ?? '—',
-      role: profile.role as UserRole,
-      isActive: profile.is_active ?? true,
-      lastLogin: '—',
-    }));
-
-    setUsers(mappedUsers);
-  } catch (error) {
-    console.error('Failed to load users:', error);
-
-    setUserError(
-      error instanceof Error
-        ? error.message
-        : 'Failed to load users.'
-    );
-  } finally {
-    setUsersLoading(false);
-  }
-};
-
-useEffect(() => {
-  void loadUsers();
-}, []);
+  useEffect(() => {
+    void loadUsers();
+  }, []);
   const openAddUser = () => { setUserForm({ ...emptyUser }); setEditingUser(null); setUserModal(true); };
   const openEditUser = (u: AppUser) => { setUserForm({ name: u.name, email: u.email, password: '', role: u.role }); setEditingUser(u); setUserModal(true); };
 
 
 
-const handleUserSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+  const handleUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  try {
-    setUserError('');
+    try {
+      setUserError('');
 
-if (editingUser) {
-  const { data, error } = await supabase.functions.invoke(
-    'manage-user',
-    {
-      body: {
-        action: 'update',
-        userId: editingUser.id,
-        name: userForm.name.trim(),
-        role: userForm.role,
-      },
-    }
-  );
+      if (editingUser) {
+        const { data, error } = await supabase.functions.invoke(
+          'manage-user',
+          {
+            body: {
+              action: 'update',
+              userId: editingUser.id,
+              name: userForm.name.trim(),
+              role: userForm.role,
+            },
+          }
+        );
 
-  if (error) {
-    throw new Error(error.message);
-  }
+        if (error) {
+          throw new Error(error.message);
+        }
 
-  if (!data?.success) {
-    throw new Error(
-      data?.error || 'Failed to update user.'
-    );
-  }
+        if (!data?.success) {
+          throw new Error(
+            data?.error || 'Failed to update user.'
+          );
+        }
 
-  await loadUsers();
-  setUserModal(false);
-  return;
-}
-
-    const { data, error } = await supabase.functions.invoke(
-      'create-user',
-      {
-        body: {
-          name: userForm.name.trim(),
-          email: userForm.email.trim().toLowerCase(),
-          password: userForm.password,
-          role: userForm.role,
-        },
+        await loadUsers();
+        setUserModal(false);
+        return;
       }
-    );
 
-    if (error) {
-      throw new Error(error.message);
-    }
+      const { data, error } = await supabase.functions.invoke(
+        'create-user',
+        {
+          body: {
+            name: userForm.name.trim(),
+            email: userForm.email.trim().toLowerCase(),
+            password: userForm.password,
+            role: userForm.role,
+          },
+        }
+      );
 
-    if (!data?.success) {
-      throw new Error(
-        data?.error || 'Failed to create user.'
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (!data?.success) {
+        throw new Error(
+          data?.error || 'Failed to create user.'
+        );
+      }
+
+      await loadUsers();
+
+      setUserModal(false);
+
+      setUserForm({
+        ...emptyUser,
+      });
+
+    } catch (error) {
+      console.error('User operation failed:', error);
+
+      setUserError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to create/update user.'
       );
     }
-
-    await loadUsers();
-
-    setUserModal(false);
-
-    setUserForm({
-      ...emptyUser,
-    });
-
-  } catch (error) {
-    console.error('User operation failed:', error);
-
-    setUserError(
-      error instanceof Error
-        ? error.message
-        : 'Failed to create/update user.'
-    );
-  }
-};
+  };
 
 
 
-const toggleUserActive = async (id: string) => {
-  try {
-    setUserError('');
+  const toggleUserActive = async (id: string) => {
+    try {
+      setUserError('');
 
-    const currentUser = users.find((u) => u.id === id);
+      const currentUser = users.find((u) => u.id === id);
 
-    if (!currentUser) {
+      if (!currentUser) {
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke(
+        'manage-user',
+        {
+          body: {
+            action: 'toggle-active',
+            userId: id,
+            isActive: !currentUser.isActive,
+          },
+        }
+      );
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (!data?.success) {
+        throw new Error(
+          data?.error || 'Failed to update user status.'
+        );
+      }
+
+      await loadUsers();
+
+    } catch (error) {
+      console.error('Failed to update user status:', error);
+
+      setUserError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to update user status.'
+      );
+    }
+  };
+
+
+
+  const handleChangePwd = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    setPwdError('');
+
+    if (!pwdModal) {
       return;
     }
 
-    const { data, error } = await supabase.functions.invoke(
-      'manage-user',
-      {
-        body: {
-          action: 'toggle-active',
-          userId: id,
-          isActive: !currentUser.isActive,
-        },
-      }
-    );
-
-    if (error) {
-      throw new Error(error.message);
+    if (newPwd.length < 6) {
+      setPwdError('Password must be at least 6 characters.');
+      return;
     }
 
-    if (!data?.success) {
-      throw new Error(
-        data?.error || 'Failed to update user status.'
+    if (newPwd !== confirmPwd) {
+      setPwdError('Passwords do not match.');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        'manage-user',
+        {
+          body: {
+            action: 'reset-password',
+            userId: pwdModal.id,
+            password: newPwd,
+          },
+        }
+      );
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (!data?.success) {
+        throw new Error(
+          data?.error || 'Failed to reset password.'
+        );
+      }
+
+      setPwdModal(null);
+      setNewPwd('');
+      setConfirmPwd('');
+      setPwdError('');
+    } catch (error) {
+      console.error('Failed to reset password:', error);
+
+      setPwdError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to reset password.'
       );
     }
-
-    await loadUsers();
-
-  } catch (error) {
-    console.error('Failed to update user status:', error);
-
-    setUserError(
-      error instanceof Error
-        ? error.message
-        : 'Failed to update user status.'
-    );
-  }
-};
-
-
-
-const handleChangePwd = async (e: React.FormEvent) => {
-  e.preventDefault();
-
-  setPwdError('');
-
-  if (!pwdModal) {
-    return;
-  }
-
-  if (newPwd.length < 6) {
-    setPwdError('Password must be at least 6 characters.');
-    return;
-  }
-
-  if (newPwd !== confirmPwd) {
-    setPwdError('Passwords do not match.');
-    return;
-  }
-
-  try {
-    const { data, error } = await supabase.functions.invoke(
-      'manage-user',
-      {
-        body: {
-          action: 'reset-password',
-          userId: pwdModal.id,
-          password: newPwd,
-        },
-      }
-    );
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    if (!data?.success) {
-      throw new Error(
-        data?.error || 'Failed to reset password.'
-      );
-    }
-
-    setPwdModal(null);
-    setNewPwd('');
-    setConfirmPwd('');
-    setPwdError('');
-  } catch (error) {
-    console.error('Failed to reset password:', error);
-
-    setPwdError(
-      error instanceof Error
-        ? error.message
-        : 'Failed to reset password.'
-    );
-  }
-};
+  };
 
   const TABS: { id: SettingsTab; label: string; icon: React.ElementType }[] = [
-    { id: 'company', label: 'Company',  icon: Building2 },
-    { id: 'invoice', label: 'Invoice',  icon: Receipt   },
-    { id: 'users',   label: 'User Management', icon: Users },
-    { id: 'system',  label: 'System',   icon: Monitor   },
+    { id: 'company', label: 'Company', icon: Building2 },
+    { id: 'invoice', label: 'Invoice', icon: Receipt },
+    { id: 'accounts', label: 'Accounts', icon: IndianRupee },
+    { id: 'users', label: 'User Management', icon: Users },
+    { id: 'system', label: 'System', icon: Monitor },
   ];
 
 
 
   useEffect(() => {
-  const loadSettings = async () => {
-    try {
-      setSettingsLoading(true);
+    const loadSettings = async () => {
+      try {
+        setSettingsLoading(true);
 
-      const [
-        companyData,
-        invoiceData,
-        systemData,
-      ] = await Promise.all([
-        getCompanySettings(),
-        getInvoiceSettings(),
-        getSystemSettings(),
-      ]);
+        const [
+          companyGstData,
+          companyNonGstData,
+          invoiceData,
+          systemData,
+        ] = await Promise.all([
+          getCompanySettings(1),
+          getCompanySettings(2),
+          getInvoiceSettings(),
+          getSystemSettings(),
+        ]);
 
-      // -----------------------------------------
-      // Company
-      // -----------------------------------------
+        // -----------------------------------------
+        // Company
+        // -----------------------------------------
 
-      setCompany({
-        name: companyData.company_name ?? '',
-        address: companyData.address ?? '',
-        gstin: companyData.gst_number ?? '',
-        pan: companyData.pan ?? '',
-        phone: companyData.phone ?? '',
-        email: companyData.email ?? '',
-        logoUrl: companyData.logo_url ?? '',
-      });
+        setGstCompany({
+          name: companyGstData.company_name ?? '',
+          address: companyGstData.address ?? '',
+          gstin: companyGstData.gst_number ?? '',
+          pan: companyGstData.pan ?? '',
+          phone: companyGstData.phone ?? '',
+          email: companyGstData.email ?? '',
+          logoUrl: companyGstData.logo_url ?? '',
+          bankName: companyGstData.bank_name ?? '',
+          bankBranch: companyGstData.bank_branch ?? '',
+          accountName: companyGstData.account_name ?? '',
+          accountNumber: companyGstData.account_number ?? '',
+          ifscCode: companyGstData.ifsc_code ?? '',
+          upiId: companyGstData.upi_id ?? '',
+        });
 
-      // -----------------------------------------
-      // Invoice
-      // -----------------------------------------
+        setNonGstCompany({
+          name: companyNonGstData.company_name ?? '',
+          address: companyNonGstData.address ?? '',
+          gstin: companyNonGstData.gst_number ?? '',
+          pan: companyNonGstData.pan ?? '',
+          phone: companyNonGstData.phone ?? '',
+          email: companyNonGstData.email ?? '',
+          logoUrl: companyNonGstData.logo_url ?? '',
+          bankName: companyNonGstData.bank_name ?? '',
+          bankBranch: companyNonGstData.bank_branch ?? '',
+          accountName: companyNonGstData.account_name ?? '',
+          accountNumber: companyNonGstData.account_number ?? '',
+          ifscCode: companyNonGstData.ifsc_code ?? '',
+          upiId: companyNonGstData.upi_id ?? '',
+        });
 
-      setInvoice({
-        prefix: invoiceData.prefix,
-        numberFormat: invoiceData.number_format,
-        defaultGstMode: invoiceData.default_gst_mode,
-        footerText: invoiceData.footer_text,
-      });
+        // -----------------------------------------
+        // Invoice
+        // -----------------------------------------
 
-      // -----------------------------------------
-      // System
-      // -----------------------------------------
+        setInvoice({
+          prefix: invoiceData.prefix,
+          numberFormat: invoiceData.number_format,
+          defaultGstMode: invoiceData.default_gst_mode,
+          footerText: invoiceData.footer_text,
+        });
 
-      setSystem({
-        theme: systemData.theme,
-        currency: systemData.currency,
-        dateFormat: systemData.date_format,
-      });
+        // -----------------------------------------
+        // System
+        // -----------------------------------------
 
-    } catch (error) {
-      console.error("Failed to load settings:", error);
-    } finally {
-      setSettingsLoading(false);
-    }
-  };
+        setSystem({
+          theme: systemData.theme,
+          currency: systemData.currency,
+          dateFormat: systemData.date_format,
+        });
 
-  void loadSettings();
-}, []);
+      } catch (error) {
+        console.error("Failed to load settings:", error);
+        const msg = error && typeof error === 'object' && 'message' in error
+          ? String((error as any).message)
+          : error instanceof Error
+            ? error.message
+            : JSON.stringify(error);
+        alert("Failed to load settings: " + msg);
+      } finally {
+        setSettingsLoading(false);
+      }
+    };
+
+    void loadSettings();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -540,6 +605,22 @@ const handleChangePwd = async (e: React.FormEvent) => {
         ══════════════════════════════════════ */}
         {tab === 'company' && (
           <div className="p-6 space-y-5">
+            {/* Toggle Button for GST vs Non-GST company profile */}
+            <div className="flex items-center justify-start gap-2 bg-[#1a1a1a] p-1.5 rounded-xl border border-white/5 max-w-xs">
+              <button
+                onClick={() => setCompanyMode('gst')}
+                className={`flex-1 text-center py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition ${companyMode === 'gst' ? 'bg-blue-600 text-white shadow-lg' : 'text-[#d1d1d1]/50 hover:text-white'}`}
+              >
+                GST Settings
+              </button>
+              <button
+                onClick={() => setCompanyMode('nongst')}
+                className={`flex-1 text-center py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition ${companyMode === 'nongst' ? 'bg-blue-600 text-white shadow-lg' : 'text-[#d1d1d1]/50 hover:text-white'}`}
+              >
+                Non-GST Settings
+              </button>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <Field label="Company Name" required>
                 <input value={company.name} onChange={e => setCompany({ ...company, name: e.target.value })} className={inputCls} placeholder="Your business name" />
@@ -550,12 +631,16 @@ const handleChangePwd = async (e: React.FormEvent) => {
               <Field label="Email Address">
                 <input type="email" value={company.email} onChange={e => setCompany({ ...company, email: e.target.value })} className={inputCls} />
               </Field>
-              <Field label="GST Number">
-                <input value={company.gstin} onChange={e => setCompany({ ...company, gstin: e.target.value })} className={inputCls} placeholder="15-digit GSTIN" />
-              </Field>
-              <Field label="PAN Number">
-                <input value={company.pan} onChange={e => setCompany({ ...company, pan: e.target.value })} className={inputCls} placeholder="10-character PAN" />
-              </Field>
+              {companyMode === 'gst' && (
+                <>
+                  <Field label="GST Number">
+                    <input value={company.gstin} onChange={e => setCompany({ ...company, gstin: e.target.value })} className={inputCls} placeholder="15-digit GSTIN" />
+                  </Field>
+                  <Field label="PAN Number">
+                    <input value={company.pan} onChange={e => setCompany({ ...company, pan: e.target.value })} className={inputCls} placeholder="10-character PAN" />
+                  </Field>
+                </>
+              )}
               <Field label="Company Logo">
                 <label className="flex items-center gap-3 cursor-pointer bg-[#1a1a1a] border border-dashed border-white/20 rounded-xl px-3 py-2.5 hover:border-blue-500 transition group">
                   <Upload className="w-4 h-4 text-[#d1d1d1]/30 group-hover:text-blue-500" />
@@ -584,6 +669,57 @@ const handleChangePwd = async (e: React.FormEvent) => {
                 className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider shadow-lg transition ${companySaved ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20'}`}>
                 <Save className="w-3.5 h-3.5" />
                 {companySaved ? 'Saved!' : 'Save Company Settings'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════
+            BANK ACCOUNT SETTINGS
+        ══════════════════════════════════════ */}
+        {tab === 'accounts' && (
+          <div className="p-6 space-y-5">
+            {/* Toggle Button for GST vs Non-GST account profile */}
+            <div className="flex items-center justify-start gap-2 bg-[#1a1a1a] p-1.5 rounded-xl border border-white/5 max-w-xs">
+              <button
+                onClick={() => setCompanyMode('gst')}
+                className={`flex-1 text-center py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition ${companyMode === 'gst' ? 'bg-blue-600 text-white shadow-lg' : 'text-[#d1d1d1]/50 hover:text-white'}`}
+              >
+                GST Accounts
+              </button>
+              <button
+                onClick={() => setCompanyMode('nongst')}
+                className={`flex-1 text-center py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition ${companyMode === 'nongst' ? 'bg-blue-600 text-white shadow-lg' : 'text-[#d1d1d1]/50 hover:text-white'}`}
+              >
+                Non-GST Accounts
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <Field label="Bank Name">
+                <input value={company.bankName || ''} onChange={e => setCompany({ ...company, bankName: e.target.value })} className={inputCls} placeholder="e.g. AXIS BANK" />
+              </Field>
+              <Field label="Branch Name">
+                <input value={company.bankBranch || ''} onChange={e => setCompany({ ...company, bankBranch: e.target.value })} className={inputCls} placeholder="e.g. RAMBAGH, AGRA" />
+              </Field>
+              <Field label="Account Holder Name">
+                <input value={company.accountName || ''} onChange={e => setCompany({ ...company, accountName: e.target.value })} className={inputCls} placeholder="e.g. JAI SHIV TRADING COMPANY" />
+              </Field>
+              <Field label="Account Number">
+                <input value={company.accountNumber || ''} onChange={e => setCompany({ ...company, accountNumber: e.target.value })} className={inputCls} placeholder="e.g. 924020037111248" />
+              </Field>
+              <Field label="IFSC Code">
+                <input value={company.ifscCode || ''} onChange={e => setCompany({ ...company, ifscCode: e.target.value })} className={inputCls} placeholder="e.g. UTIB0003333" />
+              </Field>
+              <Field label="UPI ID">
+                <input value={company.upiId || ''} onChange={e => setCompany({ ...company, upiId: e.target.value })} className={inputCls} placeholder="e.g. 9027538830@AXISBANK" />
+              </Field>
+            </div>
+            <div className="flex justify-end">
+              <button onClick={saveCompany}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider shadow-lg transition ${companySaved ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20'}`}>
+                <Save className="w-3.5 h-3.5" />
+                {companySaved ? 'Saved!' : 'Save Account Settings'}
               </button>
             </div>
           </div>
@@ -644,17 +780,17 @@ const handleChangePwd = async (e: React.FormEvent) => {
         {tab === 'users' && (
           <div className="p-6 space-y-4">
             {userError && (
-  <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs">
-    <span>{userError}</span>
+              <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs">
+                <span>{userError}</span>
 
-    <button
-      onClick={() => setUserError('')}
-      className="text-rose-400 hover:text-white"
-    >
-      <X className="w-4 h-4" />
-    </button>
-  </div>
-)}
+                <button
+                  onClick={() => setUserError('')}
+                  className="text-rose-400 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
@@ -682,99 +818,97 @@ const handleChangePwd = async (e: React.FormEvent) => {
                     <th className="p-3.5 text-right">Owner Actions</th>
                   </tr>
                 </thead>
-       <tbody className="divide-y divide-white/5">
-  {usersLoading ? (
-    <tr>
-      <td
-        colSpan={5}
-        className="p-8 text-center text-[#d1d1d1]/40"
-      >
-        Loading users...
-      </td>
-    </tr>
-  ) : users.length === 0 ? (
-    <tr>
-      <td
-        colSpan={5}
-        className="p-8 text-center text-[#d1d1d1]/40"
-      >
-        No users found.
-      </td>
-    </tr>
-  ) : (
-    users.map(u => (
-      <tr key={u.id} className="hover:bg-white/5 transition">
-        <td className="p-3.5">
-          <p className="font-bold text-white">{u.name}</p>
-          <p className="text-[10px] text-[#d1d1d1]/40">
-            {u.email}
-          </p>
-        </td>
+                <tbody className="divide-y divide-white/5">
+                  {usersLoading ? (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="p-8 text-center text-[#d1d1d1]/40"
+                      >
+                        Loading users...
+                      </td>
+                    </tr>
+                  ) : users.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="p-8 text-center text-[#d1d1d1]/40"
+                      >
+                        No users found.
+                      </td>
+                    </tr>
+                  ) : (
+                    users.map(u => (
+                      <tr key={u.id} className="hover:bg-white/5 transition">
+                        <td className="p-3.5">
+                          <p className="font-bold text-white">{u.name}</p>
+                          <p className="text-[10px] text-[#d1d1d1]/40">
+                            {u.email}
+                          </p>
+                        </td>
 
-        <td className="p-3.5 text-center">
-          <span
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider ${roleColors[u.role]}`}
-          >
-            {u.role}
-          </span>
-        </td>
+                        <td className="p-3.5 text-center">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider ${roleColors[u.role]}`}
+                          >
+                            {u.role}
+                          </span>
+                        </td>
 
-        <td className="p-3.5 text-center text-[#d1d1d1]/50">
-          {u.lastLogin}
-        </td>
+                        <td className="p-3.5 text-center text-[#d1d1d1]/50">
+                          {u.lastLogin}
+                        </td>
 
-        <td className="p-3.5 text-center">
-          <span
-            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider ${
-              u.isActive
-                ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
-                : 'bg-rose-500/15 text-rose-500 border border-rose-500/30'
-            }`}
-          >
-            {u.isActive ? 'Active' : 'Deactivated'}
-          </span>
-        </td>
+                        <td className="p-3.5 text-center">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider ${u.isActive
+                                ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
+                                : 'bg-rose-500/15 text-rose-500 border border-rose-500/30'
+                              }`}
+                          >
+                            {u.isActive ? 'Active' : 'Deactivated'}
+                          </span>
+                        </td>
 
-        <td className="p-3.5 text-right space-x-1.5">
-          <button
-            onClick={() => openEditUser(u)}
-            title="Assign Role / Edit User"
-            className="p-1.5 bg-[#1a1a1a] hover:bg-white/10 text-blue-500 rounded-full border border-white/5 transition"
-          >
-            <Edit className="w-3.5 h-3.5" />
-          </button>
+                        <td className="p-3.5 text-right space-x-1.5">
+                          <button
+                            onClick={() => openEditUser(u)}
+                            title="Assign Role / Edit User"
+                            className="p-1.5 bg-[#1a1a1a] hover:bg-white/10 text-blue-500 rounded-full border border-white/5 transition"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
 
-          <button
-            onClick={() => {
-              setPwdModal(u);
-              setNewPwd('');
-              setConfirmPwd('');
-              setPwdError('');
-            }}
-            title="Reset Password"
-            className="p-1.5 bg-[#1a1a1a] hover:bg-white/10 text-sky-500 rounded-full border border-white/5 transition"
-          >
-            <Lock className="w-3.5 h-3.5" />
-          </button>
+                          <button
+                            onClick={() => {
+                              setPwdModal(u);
+                              setNewPwd('');
+                              setConfirmPwd('');
+                              setPwdError('');
+                            }}
+                            title="Reset Password"
+                            className="p-1.5 bg-[#1a1a1a] hover:bg-white/10 text-sky-500 rounded-full border border-white/5 transition"
+                          >
+                            <Lock className="w-3.5 h-3.5" />
+                          </button>
 
-          <button
-            onClick={() => toggleUserActive(u.id)}
-            title={u.isActive ? 'Deactivate Account' : 'Activate Account'}
-            className={`p-1.5 bg-[#1a1a1a] hover:bg-white/10 rounded-full border border-white/5 transition ${
-              u.isActive ? 'text-rose-500' : 'text-emerald-500'
-            }`}
-          >
-            {u.isActive ? (
-              <UserX className="w-3.5 h-3.5" />
-            ) : (
-              <UserCheck className="w-3.5 h-3.5" />
-            )}
-          </button>
-        </td>
-      </tr>
-    ))
-  )}
-</tbody>
+                          <button
+                            onClick={() => toggleUserActive(u.id)}
+                            title={u.isActive ? 'Deactivate Account' : 'Activate Account'}
+                            className={`p-1.5 bg-[#1a1a1a] hover:bg-white/10 rounded-full border border-white/5 transition ${u.isActive ? 'text-rose-500' : 'text-emerald-500'
+                              }`}
+                          >
+                            {u.isActive ? (
+                              <UserX className="w-3.5 h-3.5" />
+                            ) : (
+                              <UserCheck className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
               </table>
             </div>
           </div>
@@ -812,8 +946,8 @@ const handleChangePwd = async (e: React.FormEvent) => {
             <div className="bg-[#0f0f0f] border border-white/10 rounded-xl p-4 space-y-2">
               <p className="text-[10px] text-blue-500 uppercase tracking-widest font-bold mb-2">Active Configuration</p>
               {[
-                { label: 'Theme',       value: system.theme.charAt(0).toUpperCase() + system.theme.slice(1) },
-                { label: 'Currency',    value: system.currency },
+                { label: 'Theme', value: system.theme.charAt(0).toUpperCase() + system.theme.slice(1) },
+                { label: 'Currency', value: system.currency },
                 { label: 'Date Format', value: system.dateFormat },
               ].map(row => (
                 <div key={row.label} className="flex justify-between items-center text-xs">

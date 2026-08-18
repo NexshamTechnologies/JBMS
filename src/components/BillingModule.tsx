@@ -13,6 +13,7 @@ import {
 import { Invoice, Party, InvoiceItem, Payment, PaymentMode, Product } from '../types';
 import { InvoicePrintModal } from './InvoicePrintModal';
 import { useToast } from './ToastProvider';
+import { getNextInvoiceNumber } from '../services/invoices';
 
 interface BillingModuleProps {
   invoices: Invoice[];
@@ -245,57 +246,42 @@ const totalNonGstSales = invoices
     const fyEnd = (fyStart + 1) % 100;
     const fyPrefix = `JS/${String(fyStart).slice(-2)}-${String(fyEnd).padStart(2, '0')}/`;
 
-    // Determine next sequential invoice number based on max suffix of existing invoices matching the current FY prefix
-    let maxNum = 0;
-    let hasMatchingFy = false;
-
-    invoices.forEach((inv) => {
-      if (inv.invoiceNumber.startsWith(fyPrefix)) {
-        hasMatchingFy = true;
-        const suffix = inv.invoiceNumber.substring(fyPrefix.length);
-        const num = parseInt(suffix, 10);
-        if (!isNaN(num) && num > maxNum) {
-          maxNum = num;
-        }
-      }
-    });
-
-    // If no invoices exist in the current FY, start from 1. Otherwise increment.
-    const nextSeq = hasMatchingFy ? maxNum + 1 : 1;
-    const nextInvoiceNumber = `${fyPrefix}${nextSeq}`;
-
-    const newInvoice: Invoice = {
-      id: `INV-${Date.now()}`,
-      invoiceNumber: nextInvoiceNumber,
-      orderNumber: `JSO-${currentYear}-${Math.floor(100 + Math.random() * 900)}`,
-      date: new Date().toISOString().split('T')[0],
-      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .split('T')[0],
-      partyId: party.id,
-      partyName: party.name,
-      partyGstin: party.gstin,
-      partyAddress: party.address,
-      partyCity: party.city,
-      partyState: party.state,
-      isInterstate,
-      isGstInvoice: isGstEnabled,
-      items: computedInvoiceItems,
-      taxableValue,
-      cgstTotal,
-      sgstTotal,
-      igstTotal,
-      roundOff: 0,
-      grandTotal,
-      status: 'Unpaid',
-      paidAmount: 0,
-      eWayBillNo: isGstEnabled ? eWayBillNo : undefined,
-      transporterName: isGstEnabled ? transporterName : undefined,
-      lrNumber: isGstEnabled ? lrNumber : undefined
-    };
-
     try {
       setIsSavingInvoice(true);
+
+      // Determine next sequential invoice number directly from Supabase DB to avoid local state collisions
+      const resolvedInvoiceNumber = await getNextInvoiceNumber(fyPrefix);
+
+      const newInvoice: Invoice = {
+        id: `INV-${Date.now()}`,
+        invoiceNumber: resolvedInvoiceNumber,
+        orderNumber: `JSO-${currentYear}-${Math.floor(100 + Math.random() * 900)}`,
+        date: new Date().toISOString().split('T')[0],
+        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split('T')[0],
+        partyId: party.id,
+        partyName: party.name,
+        partyGstin: party.gstin,
+        partyAddress: party.address,
+        partyCity: party.city,
+        partyState: party.state,
+        isInterstate,
+        isGstInvoice: isGstEnabled,
+        items: computedInvoiceItems,
+        taxableValue,
+        cgstTotal,
+        sgstTotal,
+        igstTotal,
+        roundOff: 0,
+        grandTotal,
+        status: 'Unpaid',
+        paidAmount: 0,
+        eWayBillNo: isGstEnabled ? eWayBillNo : undefined,
+        transporterName: isGstEnabled ? transporterName : undefined,
+        lrNumber: isGstEnabled ? lrNumber : undefined
+      };
+
       await onCreateInvoice(newInvoice);
       addToast('success', 'Invoice saved successfully.');
       setIsOpenNewInvoiceModal(false);
