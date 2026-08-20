@@ -1,28 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Search,
   Sparkles,
   Clock,
   ShieldCheck,
   ChevronDown,
   Sun,
   Moon,
-  LogOut,    
-  User,
-  KeyRound
+  LogOut,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 interface HeaderProps {
-  searchTerm: string;
-  setSearchTerm: (term: string) => void;
   activeTab: string;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  searchTerm,
-  setSearchTerm,
   activeTab,
   theme,
   toggleTheme
@@ -80,44 +73,16 @@ const displayName =
       <div className="px-4 lg:px-8 py-3 flex items-center justify-between gap-4">
         {/* Brand & Identity */}
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/20 ring-2 ring-blue-500/30">
-            <span className="text-sm font-black tracking-tight">JS</span>
-          </div>
+          <img src="/logo.png" alt="Jai Shiv Trading" className="h-11 w-auto object-contain rounded-lg shadow-md" />
           <div>
             <div className="flex items-center gap-2">
               <h1 className="font-bold text-base lg:text-lg tracking-wider text-white italic font-serif leading-tight">
-                JAI SHIV <span className="not-italic font-sans font-black text-blue-600 dark:text-blue-500">BMS</span>
+                JAI SHIV <span className="not-italic font-sans font-black text-blue-600 dark:text-blue-500">TRADING</span>
               </h1>
-              <span className="bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-blue-500/20 uppercase tracking-[0.15em] flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3 text-emerald-500" />
-                {userRole}
-              </span>
             </div>
             <p className="text-[10px] text-[#d1d1d1]/50 hidden sm:block">
-              Business Management Console
+              Business Management System
             </p>
-          </div>
-        </div>
-
-        {/* Global Search Bar */}
-        <div className="flex-1 max-w-md hidden md:block">
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#d1d1d1]/40" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search customers, invoices, products..."
-              className="w-full bg-[#141414] border border-white/10 rounded-full pl-10 pr-10 py-2 text-xs text-white placeholder-[#d1d1d1]/30 focus:outline-none focus:border-blue-500 transition"
-            />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[10px] uppercase tracking-wider text-[#d1d1d1]/50 hover:text-white"
-              >
-                Clear
-              </button>
-            )}
           </div>
         </div>
 
@@ -181,23 +146,6 @@ const displayName =
                   </div>
                 </div>
 
-                {/* Profile Navigation / Settings Items */}
-                <div className="p-2 border-b border-white/10 space-y-1">
-                  <button
-                    onClick={() => setProfileOpen(false)}
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-[#d1d1d1]/80 hover:bg-white/5 hover:text-white transition-colors"
-                  >
-                    <User className="w-4 h-4 text-blue-500" />
-                    Profile Details
-                  </button>
-                  <button
-                    onClick={() => setProfileOpen(false)}
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-[#d1d1d1]/80 hover:bg-white/5 hover:text-white transition-colors"
-                  >
-                    <KeyRound className="w-4 h-4 text-blue-500" />
-                    Change Password
-                  </button>
-                </div>
 
                 {/* Actions */}
                 <div className="p-2">

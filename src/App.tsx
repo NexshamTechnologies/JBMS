@@ -641,8 +641,6 @@ const handleResetToDefaults = () => {
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
       {/* Top Fixed Header */}
         <Header
-          searchTerm={globalSearch}
-          setSearchTerm={setGlobalSearch}
           activeTab={activeTab}
           theme={theme}
           toggleTheme={toggleTheme}

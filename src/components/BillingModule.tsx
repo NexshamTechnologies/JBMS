@@ -340,8 +340,8 @@ const totalNonGstSales = invoices
           onClick={() => setIsOpenNewInvoiceModal(true)}
           className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-full text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-blue-500/20 transition"
         >
-          <Plus className="w-4 h-4 stroke-[3]" />
-          <span>+ Generate Invoice</span>
+          <Receipt className="w-4 h-4" />
+          <span>Generate Invoice</span>
         </button>
       </div>
 

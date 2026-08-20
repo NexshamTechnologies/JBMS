@@ -90,18 +90,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const visibleNavItems = allNavItems.filter((item) => allowedTabs.includes(item.id));
 
   return (
-    <aside className="w-full lg:w-64 bg-[#0a0a0a] border-r border-white/10 flex-shrink-0 flex flex-col justify-between select-none">
-      <div className="p-3 lg:p-4 space-y-1">
-        <div className="px-3 py-2 flex items-center justify-between">
+    <aside className="w-full lg:w-64 lg:sticky lg:top-[61px] lg:h-[calc(100vh-61px)] bg-[#0a0a0a] border-r border-white/10 flex-shrink-0 flex flex-col justify-between select-none">
+      <div className="p-3 lg:p-4 space-y-1 flex-1 flex flex-col min-h-0">
+        <div className="px-3 py-2 flex items-center justify-between flex-shrink-0">
           <span className="text-[10px] font-bold tracking-[0.25em] text-blue-600 dark:text-blue-400 uppercase">
             Management Modules
           </span>
-          <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-white/10 text-white uppercase tracking-wider">
-            {userRole}
-          </span>
         </div>
 
-        <nav className="space-y-1">
+        <nav className="space-y-1 overflow-y-auto flex-1 pr-1">
           {visibleNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -143,7 +140,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Quick Role & System Summary Box */}
-      <div className="p-4 border-t border-white/10 hidden lg:block">
+      <div className="p-4 border-t border-white/10 hidden lg:block flex-shrink-0">
         <div className="bg-[#141414] rounded-2xl p-4 border border-white/10 text-xs space-y-2">
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">Role Access</span>
@@ -161,6 +158,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
             RBAC Active
           </div>
+        </div>
+
+        {/* Developer Signature */}
+        <div className="mt-3.5 flex items-center justify-center gap-2 text-[#d1d1d1]/35 hover:text-[#d1d1d1]/60 transition-colors duration-200 select-none">
+          <span className="text-[8px] uppercase tracking-[0.2em] font-medium">Built by</span>
+          <img src="/nexsham_logo.png" alt="Nexsham Logo" className="h-4 w-auto object-contain brightness-90 hover:brightness-100 transition-all duration-200" />
+          <span className="text-[9px] uppercase tracking-[0.15em] font-bold">Nexsham Technologies</span>
         </div>
       </div>
     </aside>
