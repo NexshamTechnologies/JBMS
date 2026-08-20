@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { getCompanySettings, CompanySettingsDB } from '../services/settings';
 import {
   BookOpen,
   Search,
@@ -16,7 +17,8 @@ import {
   ChevronRight,
   Receipt,
   CreditCard,
-  AlertCircle
+  AlertCircle,
+  Menu
 } from 'lucide-react';
 import { Party, LedgerEntry, Invoice, Payment } from '../types';
 
@@ -55,9 +57,8 @@ export const CustomerLedgerModule: React.FC<CustomerLedgerModuleProps> = ({
 }) => {
   const customers = parties.filter(p => p.type === 'Customer');
 
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string>(
-    customers[0]?.id || ''
-  );
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+  const [isListOpen, setIsListOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>('ledger');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -72,7 +73,7 @@ export const CustomerLedgerModule: React.FC<CustomerLedgerModuleProps> = ({
     [customers, searchTerm]
   );
 
-  const selectedCustomer = customers.find(c => c.id === selectedCustomerId) || customers[0];
+  const selectedCustomer = customers.find(c => c.id === selectedCustomerId) || null;
 
     // ------------------------------------------------------------
   // DERIVED CUSTOMER TRANSACTIONS
@@ -358,6 +359,13 @@ export const CustomerLedgerModule: React.FC<CustomerLedgerModuleProps> = ({
     customerLedger.length > 0
       ? customerLedger[customerLedger.length - 1].runningBalance
       : 0;
+
+  const openingBalance = useMemo(() => {
+    if (!dateFrom) return 0;
+    const priorEntries = derivedLedger.filter(e => e.date < dateFrom);
+    if (priorEntries.length === 0) return 0;
+    return priorEntries[priorEntries.length - 1].runningBalance;
+  }, [derivedLedger, dateFrom]);
   // Export CSV
   const exportCSV = () => {
     if (!selectedCustomer) return;
@@ -383,9 +391,107 @@ export const CustomerLedgerModule: React.FC<CustomerLedgerModuleProps> = ({
     URL.revokeObjectURL(url);
   };
 
-  // Print ledger
-  const printLedger = () => {
+  const [isOpenPrintPreview, setIsOpenPrintPreview] = useState(false);
+  const [company, setCompany] = useState<CompanySettingsDB | null>(null);
+
+  useEffect(() => {
+    async function loadCompany() {
+      try {
+        const companyData = await getCompanySettings(1); // Load Profile 1 by default
+        if (companyData) {
+          setCompany(companyData);
+        }
+      } catch (err) {
+        console.error('Failed to load company settings in ledger print:', err);
+      }
+    }
+    loadCompany();
+  }, []);
+
+  // Inject print styles directly into document.head to ensure clean evaluation in print preview
+  useEffect(() => {
+    const styleEl = document.createElement('style');
+    styleEl.id = 'ledger-print-overrides';
+    styleEl.innerHTML = `
+      #print-section {
+        display: none !important;
+      }
+      @media print {
+        @page {
+          size: A4 portrait;
+          margin: 10mm;
+        }
+        html, body {
+          background: white !important;
+          background-color: white !important;
+          color: black !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          width: 100% !important;
+          height: auto !important;
+        }
+        #root {
+          display: none !important;
+        }
+        #print-section {
+          display: block !important;
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+          width: 100% !important;
+          height: auto !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          background: white !important;
+          background-color: white !important;
+        }
+        #printable-ledger-clone {
+          border: none !important;
+          box-shadow: none !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          width: 100% !important;
+          background: white !important;
+          background-color: white !important;
+          color: black !important;
+        }
+      }
+    `;
+    document.head.appendChild(styleEl);
+    return () => {
+      const el = document.getElementById('ledger-print-overrides');
+      if (el) {
+        document.head.removeChild(el);
+      }
+      const printSec = document.getElementById('print-section');
+      if (printSec) {
+        document.body.removeChild(printSec);
+      }
+    };
+  }, []);
+
+  // Print ledger using cloned DOM node to body to bypass React nested container clipping
+  const handlePrint = () => {
+    let printSection = document.getElementById('print-section');
+    if (!printSection) {
+      printSection = document.createElement('div');
+      printSection.id = 'print-section';
+      document.body.appendChild(printSection);
+    }
+
+    const ledgerEl = document.getElementById('printable-ledger-sheet');
+    if (ledgerEl) {
+      const clone = ledgerEl.cloneNode(true) as HTMLElement;
+      clone.id = 'printable-ledger-clone';
+      printSection.innerHTML = '';
+      printSection.appendChild(clone);
+    }
+
     window.print();
+
+    if (printSection) {
+      printSection.innerHTML = '';
+    }
   };
 
   const tabs: { id: ActiveTab; label: string; icon: React.ElementType; count: number }[] = [
@@ -395,74 +501,153 @@ export const CustomerLedgerModule: React.FC<CustomerLedgerModuleProps> = ({
   ];
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 h-full">
-      {/* ── LEFT: Customer List Panel ── */}
-      <div className="lg:w-72 flex-shrink-0 space-y-3 print:hidden">
-        <div className="bg-[#141414] border border-white/10 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <BookOpen className="w-4 h-4 text-blue-500" />
-            <h2 className="text-sm font-serif italic text-white">Customer Ledger</h2>
-          </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#d1d1d1]/40" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              placeholder="Search customers..."
-              className="w-full bg-[#1a1a1a] text-xs text-white placeholder-[#d1d1d1]/40 pl-8 pr-3 py-2 rounded-full border border-white/10 focus:outline-none focus:border-blue-500"
-            />
+    <>
+      {!selectedCustomer ? (
+        /* Center-aligned selection page when no customer is selected */
+        <div className="max-w-2xl mx-auto w-full py-8 print:hidden">
+          <div className="bg-[#141414] border border-white/10 rounded-2xl p-6 shadow-xl space-y-4">
+            <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+              <BookOpen className="w-6 h-6 text-blue-500" />
+              <div className="text-left">
+                <h2 className="text-lg font-serif italic text-white">Customer Ledgers</h2>
+                <p className="text-xs text-[#d1d1d1]/50">Select a customer to view their transactions, invoices, and payments</p>
+              </div>
+            </div>
+            
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#d1d1d1]/40" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                placeholder="Search customers by name, city or GSTIN..."
+                className="w-full bg-[#1a1a1a] text-sm text-white placeholder-[#d1d1d1]/40 pl-10 pr-4 py-2.5 rounded-full border border-white/10 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            {/* Customer List */}
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+              {filteredCustomers.length === 0 ? (
+                <p className="text-xs text-[#d1d1d1]/40 text-center p-6">No customers found.</p>
+              ) : (
+                filteredCustomers.map(c => {
+                  const hasOverdue = invoices.some(
+                    i => i.partyId === c.id && (i.status === 'Overdue' || i.status === 'Unpaid')
+                  );
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => {
+                        setSelectedCustomerId(c.id);
+                        setActiveTab('ledger');
+                        setIsListOpen(false); // Collapsed by default when selected
+                      }}
+                      className="w-full text-left px-5 py-4 rounded-xl border border-white/5 bg-[#1a1a1a]/40 hover:bg-white/5 transition flex items-center justify-between cursor-pointer"
+                    >
+                      <div className="text-left">
+                        <p className="text-sm font-semibold text-white">{c.name}</p>
+                        <p className="text-xs text-[#d1d1d1]/50 mt-0.5">{c.city} {c.phone ? `• ${c.phone}` : ''}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {hasOverdue && (
+                          <span className="bg-rose-500/10 text-rose-400 text-[10px] font-bold px-2 py-0.5 rounded border border-rose-500/20">
+                            Overdue
+                          </span>
+                        )}
+                        <ChevronRight className="w-4 h-4 text-[#d1d1d1]/40" />
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
           </div>
         </div>
-
-        <div className="bg-[#141414] border border-white/10 rounded-2xl overflow-hidden">
-          <div className="max-h-[60vh] overflow-y-auto">
-            {filteredCustomers.length === 0 ? (
-              <p className="text-xs text-[#d1d1d1]/40 text-center p-6">No customers found.</p>
-            ) : (
-              filteredCustomers.map(c => {
-                const isSelected = c.id === selectedCustomerId;
-                const hasOverdue = invoices.some(
-                  i => i.partyId === c.id && (i.status === 'Overdue' || i.status === 'Unpaid')
-                );
-                return (
+      ) : (
+        /* Collapsible layout when customer is selected */
+        <div className="flex gap-4 h-full relative print:hidden">
+          
+          {/* Collapsible Left Customer Sidebar */}
+          {isListOpen && (
+            <div className="w-72 flex-shrink-0 space-y-3 bg-[#0d0d0d] lg:bg-transparent border-r border-white/10 lg:border-none pr-4 lg:pr-0 print:hidden absolute lg:relative z-30 h-full lg:h-auto overflow-y-auto">
+              <div className="bg-[#141414] border border-white/10 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-blue-500" />
+                    <h2 className="text-sm font-serif italic text-white">Customer List</h2>
+                  </div>
                   <button
-                    key={c.id}
-                    onClick={() => { setSelectedCustomerId(c.id); setActiveTab('ledger'); }}
-                    className={`w-full text-left px-4 py-3 flex items-center justify-between border-b border-white/5 transition ${
-                      isSelected ? 'bg-blue-500/10 border-l-2 border-l-blue-500' : 'hover:bg-white/5'
-                    }`}
+                    onClick={() => setIsListOpen(false)}
+                    className="p-1 text-[#d1d1d1]/50 hover:text-white hover:bg-white/5 rounded transition cursor-pointer"
+                    title="Hide List"
                   >
-                    <div className="min-w-0">
-                      <p className={`text-xs font-semibold truncate ${isSelected ? 'text-blue-500' : 'text-white'}`}>
-                        {c.name}
-                      </p>
-                      <p className="text-[10px] text-[#d1d1d1]/50 truncate mt-0.5">{c.city}</p>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
-                      {hasOverdue && (
-                        <AlertCircle className="w-3 h-3 text-rose-500" />
-                      )}
-                      {isSelected && <ChevronRight className="w-3 h-3 text-blue-500" />}
-                    </div>
+                    <X className="w-4 h-4" />
                   </button>
-                );
-              })
-            )}
-          </div>
-        </div>
-      </div>
+                </div>
 
-      {/* ── RIGHT: Ledger Detail Panel ── */}
-      {selectedCustomer ? (
-        <div className="flex-1 min-w-0 space-y-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#d1d1d1]/40" />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    placeholder="Search..."
+                    className="w-full bg-[#1a1a1a] text-xs text-white placeholder-[#d1d1d1]/40 pl-8 pr-3 py-2 rounded-full border border-white/10 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
 
-          {/* Customer Info Header */}
-          <div className="bg-[#141414] border border-white/10 rounded-2xl p-5">
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-              <div>
-                <span className="text-[10px] font-bold text-blue-500 uppercase tracking-[0.25em]">Customer Account</span>
-                <h3 className="text-xl font-serif italic text-white mt-1">{selectedCustomer.name}</h3>
+                <div className="space-y-1 max-h-[65vh] overflow-y-auto pr-1">
+                  {filteredCustomers.map(c => {
+                    const isSelected = c.id === selectedCustomerId;
+                    const hasOverdue = invoices.some(
+                      i => i.partyId === c.id && (i.status === 'Overdue' || i.status === 'Unpaid')
+                    );
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => {
+                          setSelectedCustomerId(c.id);
+                          setActiveTab('ledger');
+                          if (window.innerWidth < 1024) setIsListOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2.5 rounded-lg text-xs transition flex items-center justify-between cursor-pointer ${
+                          isSelected ? 'bg-blue-500/10 text-blue-500 font-bold border border-blue-500/20' : 'text-[#d1d1d1] hover:bg-white/5'
+                        }`}
+                      >
+                        <div className="min-w-0 pr-2 text-left">
+                          <p className="truncate">{c.name}</p>
+                          <p className="text-[9px] text-[#d1d1d1]/40 truncate mt-0.5">{c.city}</p>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          {hasOverdue && <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />}
+                          <ChevronRight className="w-3 h-3 opacity-45" />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Ledger Detail Panel */}
+          <div className="flex-1 min-w-0 space-y-4">
+
+            {/* Customer Info Header */}
+            <div className="bg-[#141414] border border-white/10 rounded-2xl p-5">
+              <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <button
+                    onClick={() => setIsListOpen(o => !o)}
+                    className="mt-1 p-2 text-[#d1d1d1]/60 hover:text-white rounded-lg hover:bg-white/10 transition print:hidden cursor-pointer"
+                    title="Toggle Customer List"
+                  >
+                    <Menu className="w-5 h-5" />
+                  </button>
+                  <div className="text-left">
+                    <span className="text-[10px] font-bold text-blue-500 uppercase tracking-[0.25em]">Customer Account</span>
+                    <h3 className="text-xl font-serif italic text-white mt-1">{selectedCustomer.name}</h3>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[11px] text-[#d1d1d1]/60">
                   <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{selectedCustomer.phone}</span>
                   <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{selectedCustomer.email}</span>
@@ -472,6 +657,7 @@ export const CustomerLedgerModule: React.FC<CustomerLedgerModuleProps> = ({
                   )}
                 </div>
               </div>
+            </div>
               {/* Action Buttons */}
               <div className="flex items-center gap-2 flex-shrink-0 print:hidden">
                 <button
@@ -487,7 +673,7 @@ export const CustomerLedgerModule: React.FC<CustomerLedgerModuleProps> = ({
                   <Download className="w-3.5 h-3.5" /> Excel
                 </button>
                 <button
-                  onClick={printLedger}
+                  onClick={() => setIsOpenPrintPreview(true)}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-full text-[10px] font-semibold bg-[#1a1a1a] text-[#d1d1d1] border border-white/10 hover:border-blue-500 hover:text-blue-500 transition"
                 >
                   <Printer className="w-3.5 h-3.5" /> Print
@@ -821,14 +1007,208 @@ const status =
             )}
           </div>
         </div>
-      ) : (
-        <div className="flex-1 flex items-center justify-center text-[#d1d1d1]/40 text-sm">
-          <div className="text-center space-y-2">
-            <IndianRupee className="w-10 h-10 mx-auto opacity-20" />
-            <p>Select a customer to view their ledger</p>
+      </div>
+      )}
+
+      {/* ── PRINT PREVIEW MODAL ── */}
+      {isOpenPrintPreview && selectedCustomer && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto print:hidden">
+          <div className="bg-[#141414] border border-white/10 rounded-2xl w-full max-w-4xl max-h-[92vh] overflow-y-auto shadow-2xl p-4 sm:p-6 text-[#d1d1d1] flex flex-col">
+            
+            {/* Action Bar */}
+            <div className="flex justify-between items-center pb-4 mb-4 border-b border-white/10 flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="bg-sky-500/15 text-sky-400 text-xs font-bold px-3 py-1 rounded-full border border-sky-500/30 uppercase tracking-wider">
+                  Statement Preview
+                </span>
+                <span className="text-[#d1d1d1]/60 text-xs font-semibold">{selectedCustomer.name}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handlePrint}
+                  className="bg-sky-600 hover:bg-sky-700 text-white font-bold px-4 py-2 rounded-full text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-sky-500/20 transition cursor-pointer font-sans"
+                >
+                  <Printer className="w-4 h-4" />
+                  Print
+                </button>
+                <button
+                  onClick={() => setIsOpenPrintPreview(false)}
+                  className="p-2 text-[#d1d1d1]/50 hover:text-white rounded-full hover:bg-white/10 transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Preview Document Area (Displays exactly what print looks like) */}
+            <div id="printable-ledger-sheet" className="bg-white text-slate-900 rounded-xl p-8 border border-slate-200 text-xs font-sans leading-normal border-t-8 border-t-sky-600 text-left relative">
+              
+              <table className="w-full text-left text-xs border-collapse print:bg-white print:text-black">
+                <thead>
+                  {/* Row 1: Letterhead */}
+                  <tr>
+                    <th colSpan={6} className="text-left font-normal border-none p-0 pb-4">
+                      <div className="flex justify-between items-start border-b border-sky-200 pb-4">
+                        <div className="flex gap-4 items-center">
+                          <img
+                            src="/logo.png"
+                            alt="Jai Shiv Trading Logo"
+                            className="w-12 h-12 object-contain rounded-lg shadow-sm"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                          <div className="text-left">
+                            <h1 className="text-lg font-black text-sky-950 tracking-wide uppercase leading-tight">
+                              {company?.company_name || 'JAI SHIV TRADING'}
+                            </h1>
+                            <p className="text-[9px] text-slate-500 max-w-[340px] mt-0.5 leading-snug">
+                              {company?.address || 'EWS NO. B-595, TRANS YAMUNA COLONY PHASE-1 RAMBAGH AGRA'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right text-[9px] text-slate-600 space-y-0.5 font-medium">
+                          {company?.phone && <p>Contact: <span className="text-slate-800 font-bold">{company.phone}</span></p>}
+                          {company?.email && <p>Email: <span className="text-slate-800 font-bold">{company.email}</span></p>}
+                          {company?.gst_number && <p>GSTIN: <span className="font-mono text-slate-900 font-bold">{company.gst_number}</span></p>}
+                          {company?.pan && <p>PAN: <span className="font-mono text-slate-900 font-bold">{company.pan}</span></p>}
+                        </div>
+                      </div>
+                    </th>
+                  </tr>
+
+                  {/* Row 2: Title Banner */}
+                  <tr>
+                    <th colSpan={6} className="text-left font-normal border-none p-0 pb-4">
+                      <div className="grid grid-cols-2 border border-sky-400 bg-sky-50/70 text-[10px] p-2 rounded items-center">
+                        <div className="text-sky-955 font-black text-xs uppercase tracking-wider">
+                          Statement of Account
+                        </div>
+                        <div className="text-right text-slate-700 font-bold">
+                          Period: {dateFrom ? dateFrom : 'Beginning'} to {dateTo ? dateTo : 'Present'}
+                        </div>
+                      </div>
+                    </th>
+                  </tr>
+
+                  {/* Row 3: Customer Details & Summary Box */}
+                  <tr>
+                    <th colSpan={6} className="text-left font-normal border-none p-0 pb-4">
+                      <div className="grid grid-cols-12 gap-6 text-xs">
+                        {/* Customer Info */}
+                        <div className="col-span-7 space-y-1 text-left">
+                          <p className="text-[9px] font-extrabold text-sky-700 uppercase tracking-wider">Account Holder Details</p>
+                          <p className="font-bold text-sm text-slate-900 text-left">{selectedCustomer.name}</p>
+                          <p className="text-slate-600 text-[11px] leading-relaxed text-left">{selectedCustomer.address}</p>
+                          <p className="text-slate-600 text-left">Mobile: {selectedCustomer.phone}</p>
+                          {selectedCustomer.gstin && (
+                            <p className="text-slate-700 text-left">
+                              GSTIN: <span className="font-mono font-bold text-slate-900">{selectedCustomer.gstin}</span>
+                            </p>
+                          )}
+                          {(selectedCustomer as any).pan && (
+                            <p className="text-slate-700 text-left">
+                              PAN: <span className="font-mono font-bold text-slate-900">{(selectedCustomer as any).pan}</span>
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Account Summary */}
+                        <div className="col-span-5 border border-sky-200 rounded-lg overflow-hidden bg-sky-50/20 text-left">
+                          <p className="text-[9px] font-extrabold bg-sky-600 text-white uppercase tracking-wider px-3 py-1.5">
+                            Account Summary (INR)
+                          </p>
+                          <div className="p-3 space-y-1.5 text-[11px]">
+                            <div className="flex justify-between">
+                              <span className="text-slate-600">Opening Balance:</span>
+                              <span className="font-bold text-slate-800">{fmt(openingBalance)} {openingBalance > 0 ? 'Dr' : openingBalance < 0 ? 'Cr' : ''}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-600">Total Debit (Sales):</span>
+                              <span className="font-bold text-rose-600">{fmt(totalDebit)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-600">Total Credit (Received):</span>
+                              <span className="font-bold text-emerald-600">{fmt(totalCredit)}</span>
+                            </div>
+                            <div className="flex justify-between border-t border-sky-200 pt-2 font-bold text-xs mt-1">
+                              <span className="text-slate-900">Closing Balance:</span>
+                              <span className={runningBalance > 0 ? 'text-rose-600 font-extrabold' : 'text-emerald-600 font-extrabold'}>
+                                {fmt(runningBalance)} {runningBalance > 0 ? 'Dr' : 'Cr'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </th>
+                  </tr>
+
+                  {/* Row 4: Column Headers */}
+                  <tr className="bg-sky-600 text-white font-bold uppercase tracking-wider text-[9px]">
+                    <th className="p-2.5 border border-sky-600 w-[15%]">Date</th>
+                    <th className="p-2.5 border border-sky-600 w-[25%]">Voucher No</th>
+                    <th className="p-2.5 border border-sky-600 w-[20%]">Voucher Type</th>
+                    <th className="p-2.5 text-right border border-sky-600 w-[13%]">Debit (Dr)</th>
+                    <th className="p-2.5 text-right border border-sky-600 w-[13%]">Credit (Cr)</th>
+                    <th className="p-2.5 text-right border border-sky-600 w-[14%]">Balance</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {customerLedger.length === 0 ? (
+                    <tr className="border border-sky-200">
+                      <td colSpan={6} className="p-6 text-center text-slate-400 bg-white">No ledger entries found.</td>
+                    </tr>
+                  ) : (
+                    customerLedger.map((entry, index) => (
+                      <tr key={entry.id} className={`border border-sky-200 border-t-0 hover:bg-sky-50/20 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-sky-50/10'}`}>
+                        <td className="p-2.5 whitespace-nowrap text-slate-700 border-r border-sky-100 w-[15%]">{entry.date}</td>
+                        <td className="p-2.5 font-bold text-slate-900 whitespace-nowrap border-r border-sky-100 w-[25%]">{entry.voucherNumber}</td>
+                        <td className="p-2.5 whitespace-nowrap text-slate-600 border-r border-sky-100 w-[20%]">{entry.voucherType}</td>
+                        <td className="p-2.5 text-right text-rose-600 font-semibold border-r border-sky-100 w-[13%]">
+                          {entry.debit > 0 ? fmt(entry.debit) : '—'}
+                        </td>
+                        <td className="p-2.5 text-right text-emerald-600 font-semibold border-r border-sky-100 w-[13%]">
+                          {entry.credit > 0 ? fmt(entry.credit) : '—'}
+                        </td>
+                        <td className={`p-2.5 text-right font-bold whitespace-nowrap w-[14%] ${entry.runningBalance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                          {fmt(entry.runningBalance)} {entry.runningBalance > 0 ? 'Dr' : 'Cr'}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                  {/* Totals row */}
+                  {customerLedger.length > 0 && (
+                    <tr className="bg-sky-50/80 font-bold border border-sky-200 text-slate-900">
+                      <td colSpan={3} className="p-2.5 text-[9px] uppercase tracking-wider text-slate-500 border-r border-sky-200 w-[60%]">Totals</td>
+                      <td className="p-2.5 text-right text-rose-600 font-extrabold border-r border-sky-200 w-[13%]">{fmt(totalDebit)}</td>
+                      <td className="p-2.5 text-right text-emerald-600 font-extrabold border-r border-sky-200 w-[13%]">{fmt(totalCredit)}</td>
+                      <td className={`p-2.5 text-right font-extrabold w-[14%] ${runningBalance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                        {fmt(runningBalance)} {runningBalance > 0 ? 'Dr' : 'Cr'}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+
+                <tfoot>
+                  <tr>
+                    <td colSpan={6} className="border-none p-0 h-24">
+                      {/* Spacer to prevent page content from overlapping the fixed page bottom footer */}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+
+              {/* Fixed Footer for Printed Pages (and standard placement for Screen Preview) */}
+              <div className="mt-8 text-center text-[9px] text-slate-400 border-t border-slate-200 pt-4 space-y-1 print:fixed print:bottom-6 print:left-8 print:right-8 print:bg-white print:mt-0">
+                <p>This is a computer generated document and does not require a physical signature.</p>
+                <p className="font-bold uppercase tracking-widest text-sky-600">Generated by Jai Shiv Trading | Powered by Nexsham Technologies</p>
+              </div>
+
+            </div>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };

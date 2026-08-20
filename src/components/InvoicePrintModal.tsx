@@ -148,6 +148,10 @@ export const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({
       if (el) {
         document.head.removeChild(el);
       }
+      const printSec = document.getElementById('print-section');
+      if (printSec) {
+        document.body.removeChild(printSec);
+      }
     };
   }, []);
 
@@ -168,6 +172,10 @@ export const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({
     }
 
     window.print();
+
+    if (printSection) {
+      printSection.innerHTML = '';
+    }
   };
 
   // Helper to format state name with its parsed GSTIN code

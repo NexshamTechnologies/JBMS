@@ -72,9 +72,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge: null
     },
     {
-      id: 'settings',
-      label: 'Settings',
-      icon: Sparkles,
+      id: 'analytics',
+      label: 'Reports & Analytics',
+      icon: BarChart3,
       badge: null
     },
     {
@@ -84,9 +84,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge: null
     },
     {
-      id: 'analytics',
-      label: 'Reports & Analytics',
-      icon: BarChart3,
+      id: 'settings',
+      label: 'Settings',
+      icon: Sparkles,
       badge: null
     }
   ];
@@ -105,7 +105,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-64 bg-[#0a0a0a] border-r border-white/10 flex-shrink-0 flex flex-col justify-between select-none transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 lg:h-[calc(100vh-61px)] lg:sticky lg:top-[61px] ${
+        className={`fixed inset-y-0 left-0 z-40 w-64 bg-[#0a0a0a] border-r border-white/10 flex-shrink-0 flex flex-col justify-between select-none transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 lg:h-[calc(100vh-64px)] lg:sticky lg:top-[61px] ${
           isOpen ? 'translate-x-0' : '-translate-x-full lg:hidden'
         }`}
       >

@@ -124,7 +124,7 @@ const roleColors: Record<UserRole, string> = {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-type SettingsTab = 'company' | 'invoice' | 'accounts' | 'users' | 'system';
+type SettingsTab = 'company' | 'invoice' | 'accounts' | 'users';
 
 export const SettingsModule: React.FC = () => {
   const [tab, setTab] = useState<SettingsTab>('company');
@@ -479,7 +479,6 @@ export const SettingsModule: React.FC = () => {
     { id: 'invoice', label: 'Invoice', icon: Receipt },
     { id: 'accounts', label: 'Accounts', icon: IndianRupee },
     { id: 'users', label: 'User Management', icon: Users },
-    { id: 'system', label: 'System', icon: Monitor },
   ];
 
 
@@ -581,7 +580,7 @@ export const SettingsModule: React.FC = () => {
         <Settings className="w-5 h-5 text-blue-500" />
         <div>
           <h2 className="text-xl font-serif italic text-white">Settings</h2>
-          <p className="text-[11px] text-[#d1d1d1]/50 mt-0.5">Company · Invoice · User Management · System</p>
+          <p className="text-[11px] text-[#d1d1d1]/50 mt-0.5">Company · Invoice · User Management</p>
         </div>
       </div>
 
@@ -641,22 +640,7 @@ export const SettingsModule: React.FC = () => {
                   </Field>
                 </>
               )}
-              <Field label="Company Logo">
-                <label className="flex items-center gap-3 cursor-pointer bg-[#1a1a1a] border border-dashed border-white/20 rounded-xl px-3 py-2.5 hover:border-blue-500 transition group">
-                  <Upload className="w-4 h-4 text-[#d1d1d1]/30 group-hover:text-blue-500" />
-                  <span className="text-xs text-[#d1d1d1]/40 group-hover:text-[#d1d1d1]">
-                    {company.logoUrl ? 'Logo uploaded ✓' : 'Upload logo (PNG/JPG)'}
-                  </span>
-                  <input type="file" accept="image/*" className="hidden"
-                    onChange={e => {
-                      const file = e.target.files?.[0];
-                      if (file) setCompany({ ...company, logoUrl: URL.createObjectURL(file) });
-                    }} />
-                </label>
-                {company.logoUrl && (
-                  <img src={company.logoUrl} alt="Logo preview" className="mt-2 h-10 object-contain rounded" />
-                )}
-              </Field>
+
               <div className="md:col-span-2">
                 <Field label="Company Address">
                   <textarea value={company.address} onChange={e => setCompany({ ...company, address: e.target.value })}
@@ -914,58 +898,7 @@ export const SettingsModule: React.FC = () => {
           </div>
         )}
 
-        {/* ══════════════════════════════════════
-            SYSTEM SETTINGS
-        ══════════════════════════════════════ */}
-        {tab === 'system' && (
-          <div className="p-6 space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              <Field label="Theme">
-                <select value={system.theme} onChange={e => setSystem({ ...system, theme: e.target.value as SystemSettings['theme'] })} className={selectCls}>
-                  <option value="dark">Dark (Default)</option>
-                  <option value="light">Light</option>
-                </select>
-              </Field>
-              <Field label="Currency">
-                <select value={system.currency} onChange={e => setSystem({ ...system, currency: e.target.value })} className={selectCls}>
-                  <option value="INR">INR — Indian Rupee (₹)</option>
-                  <option value="USD">USD — US Dollar ($)</option>
-                  <option value="EUR">EUR — Euro (€)</option>
-                </select>
-              </Field>
-              <Field label="Date Format">
-                <select value={system.dateFormat} onChange={e => setSystem({ ...system, dateFormat: e.target.value })} className={selectCls}>
-                  <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-                  <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-                  <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-                </select>
-              </Field>
-            </div>
 
-            {/* Current config display */}
-            <div className="bg-[#0f0f0f] border border-white/10 rounded-xl p-4 space-y-2">
-              <p className="text-[10px] text-blue-500 uppercase tracking-widest font-bold mb-2">Active Configuration</p>
-              {[
-                { label: 'Theme', value: system.theme.charAt(0).toUpperCase() + system.theme.slice(1) },
-                { label: 'Currency', value: system.currency },
-                { label: 'Date Format', value: system.dateFormat },
-              ].map(row => (
-                <div key={row.label} className="flex justify-between items-center text-xs">
-                  <span className="text-[#d1d1d1]/50">{row.label}</span>
-                  <span className="font-bold text-white">{row.value}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex justify-end">
-              <button onClick={saveSystem}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider shadow-lg transition ${systemSaved ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20'}`}>
-                <Save className="w-3.5 h-3.5" />
-                {systemSaved ? 'Saved!' : 'Save System Settings'}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ── Create / Edit User Modal (Owner Only) ── */}

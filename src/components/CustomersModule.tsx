@@ -39,6 +39,10 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
   // Confirmation dialog state
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deletePartyId, setDeletePartyId] = useState<string | null>(null);
+  const [isConfirmEditOpen, setIsConfirmEditOpen] = useState(false);
+  const [pendingFormValues, setPendingFormValues] = useState<Party | null>(null);
+  const [isConfirmBlockOpen, setIsConfirmBlockOpen] = useState(false);
+  const [blockParty, setBlockParty] = useState<Party | null>(null);
   // Toast hook
   const { addToast } = useToast();
 
@@ -84,14 +88,12 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
     setIsOpenModal(true);
   };
 
-const handleSubmit = async (
-    e: React.FormEvent
-) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const base = {
       id: editingParty ? editingParty.id : "",
       name: form.name,
-      code: `CUST-${Date.now()}`,
+      code: editingParty ? editingParty.code : `CUST-${Date.now()}`,
       type: 'Customer' as const,
       phone: form.phone,
       email: form.email,
@@ -99,16 +101,45 @@ const handleSubmit = async (
       state: '',
       gstin: form.gstin,
       pan: form.pan,
-      creditLimit: 0,
-      currentBalance: 0,
-      address: form.address
+      creditLimit: editingParty ? editingParty.creditLimit : 0,
+      currentBalance: editingParty ? editingParty.currentBalance : 0,
+      address: form.address,
+      isBlocked: editingParty ? (editingParty as any).isBlocked : false
     } as Party;
+
     if (editingParty) {
-      await onUpdateParty({ ...editingParty, ...base } as Party);
+      setPendingFormValues(base);
+      setIsConfirmEditOpen(true);
     } else {
       await onAddParty(base);
+      addToast('success', 'Customer added successfully');
+      setIsOpenModal(false);
     }
+  };
+
+  const handleConfirmEdit = async () => {
+    if (pendingFormValues && editingParty) {
+      await onUpdateParty({ ...editingParty, ...pendingFormValues } as Party);
+      addToast('success', 'Customer details updated successfully');
+    }
+    setIsConfirmEditOpen(false);
     setIsOpenModal(false);
+    setPendingFormValues(null);
+  };
+
+  const handleToggleBlockClick = (party: Party) => {
+    setBlockParty(party);
+    setIsConfirmBlockOpen(true);
+  };
+
+  const handleConfirmBlock = () => {
+    if (blockParty) {
+      onToggleBlock(blockParty.id);
+      const action = (blockParty as any).isBlocked ? 'unblocked' : 'blocked';
+      addToast('success', `Customer ${blockParty.name} has been successfully ${action}`);
+    }
+    setIsConfirmBlockOpen(false);
+    setBlockParty(null);
   };
 
   return (
@@ -183,7 +214,7 @@ const handleSubmit = async (
                       <button onClick={() => openEdit(c)} className="p-1.5 bg-[#1a1a1a] hover:bg-white/10 text-blue-500 rounded-full transition border border-white/5 mr-2" title="Edit">
                         <Edit className="w-4 h-4" />
                       </button>
-                      <button onClick={() => onToggleBlock(c.id)} className="p-1.5 bg-[#1a1a1a] hover:bg-white/10 text-amber-400 rounded-full transition border border-white/5" title="Block/Unblock">
+                      <button onClick={() => handleToggleBlockClick(c)} className="p-1.5 bg-[#1a1a1a] hover:bg-white/10 text-amber-400 rounded-full transition border border-white/5" title="Block/Unblock">
                         {((c as any).isBlocked) ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                       </button>
                     </td>
@@ -285,6 +316,25 @@ const handleSubmit = async (
           </div>
         </div>
       )}
+
+      {/* Confirm Edit Dialog */}
+      <ConfirmDialog
+        isOpen={isConfirmEditOpen}
+        title="Confirm Customer Edit"
+        description="Are you sure you want to save the changes made to this customer's details?"
+        onCancel={() => setIsConfirmEditOpen(false)}
+        onConfirm={handleConfirmEdit}
+      />
+
+      {/* Confirm Block Dialog */}
+      <ConfirmDialog
+        isOpen={isConfirmBlockOpen}
+        title={blockParty ? `${(blockParty as any).isBlocked ? 'Unblock' : 'Block'} Customer` : 'Toggle Block Status'}
+        description={blockParty ? `Are you sure you want to ${(blockParty as any).isBlocked ? 'unblock' : 'block'} ${blockParty.name}?` : ''}
+        danger={blockParty ? !(blockParty as any).isBlocked : false}
+        onCancel={() => setIsConfirmBlockOpen(false)}
+        onConfirm={handleConfirmBlock}
+      />
     </div>
   );
 };
