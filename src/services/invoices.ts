@@ -40,7 +40,7 @@ function mapInvoiceItem(row: any): InvoiceItem {
   return {
     id: String(row.id),
     productId: String(row.product_id),
-    description: row.products?.name ?? "",
+    description: row.products?.product_name ?? "",
     hsnCode: row.products?.hsn_code ?? "",
     meters: Number(row.quantity),
     rate: Number(row.unit_price),

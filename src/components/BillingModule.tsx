@@ -61,9 +61,9 @@ export const BillingModule: React.FC<BillingModuleProps> = ({
   const [partyId, setPartyId] = useState<string>(parties[0]?.id || '');
   const [isInterstate, setIsInterstate] = useState<boolean>(false);
   const [isGstEnabled, setIsGstEnabled] = useState<boolean>(true);
-  const [eWayBillNo, setEWayBillNo] = useState<string>('241098' + Math.floor(100000 + Math.random() * 900000));
-  const [transporterName, setTransporterName] = useState<string>('V-Trans Express Logistics');
-  const [lrNumber, setLrNumber] = useState<string>('VTR-' + Math.floor(10000 + Math.random() * 90000));
+  const [eWayBillNo, setEWayBillNo] = useState<string>('');
+  const [transporterName, setTransporterName] = useState<string>('');
+  const [lrNumber, setLrNumber] = useState<string>('');
 
   const initialProd = products[0];
   const [items, setItems] = useState<
@@ -79,6 +79,25 @@ export const BillingModule: React.FC<BillingModuleProps> = ({
       discount: 0
     }
   ]);
+
+  // Sync first item with first product once products list loads
+  React.useEffect(() => {
+    if (products.length > 0 && items.length === 1 && items[0].productId === 'PRD-001') {
+      const firstProd = products[0];
+      setItems([
+        {
+          productId: firstProd.id,
+          description: firstProd.name,
+          hsnCode: firstProd.hsnCode,
+          meters: 100,
+          rate: firstProd.sellingPrice,
+          gstPercent: firstProd.gstRate,
+          discount: 0
+        }
+      ]);
+    }
+  }, [products, items]);
+
 const getPaymentStatus = (invoice: Invoice): Invoice['status'] => {
   const total = Number(invoice.grandTotal || 0);
   const paid = Number(invoice.paidAmount || 0);
@@ -443,18 +462,18 @@ const totalNonGstSales = invoices
                   </td>
                   <td className="p-4">
                     {inv.isGstInvoice === false ? (
-                      <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider bg-slate-500/15 text-slate-300 border border-slate-500/30">
+                      <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider bg-slate-500/15 text-slate-300 border border-slate-500/30 whitespace-nowrap">
                         Non-GST
                       </span>
                     ) : (
                       <span
-                        className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+                        className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider whitespace-nowrap ${
                           inv.isInterstate
                             ? 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/30'
                             : 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
                         }`}
                       >
-                        {inv.isInterstate ? 'IGST (Inter)' : 'CGST+SGST (Intra)'}
+                        {inv.isInterstate ? 'IGST' : 'CGST+SGST'}
                       </span>
                     )}
                   </td>
@@ -486,40 +505,42 @@ const totalNonGstSales = invoices
     );
   })()}
 </td>
-                  <td className="p-4 text-right space-x-2">
-                {getPaymentStatus(inv) !== 'Paid' && (
-  <button
-    onClick={() => {
-      setSelectedInvoiceForPayment(inv);
-      setPaymentAmountInput(
-        Math.max(
-          0,
-          Number(inv.grandTotal || 0) - Number(inv.paidAmount || 0)
-        )
-      );
-      setPaymentModeInput('UPI');
-      setPaymentDateInput(new Date().toISOString().split('T')[0]);
-      setPaymentRemarksInput('');
-    }}
-    className="px-3 py-1 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 font-bold rounded-full border border-emerald-500/30 text-[10px] uppercase tracking-wider transition"
-  >
-    + Record Payment
-  </button>
-)}
-                    <button
-                      onClick={() => setSelectedInvoiceForHistory(inv)}
-                      className="p-2 bg-[#1a1a1a] hover:bg-white/10 text-sky-500 rounded-full transition border border-white/10"
-                      title="View Payment History"
-                    >
-                      <History className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => setSelectedInvoiceForPrint(inv)}
-                      className="p-2 bg-[#1a1a1a] hover:bg-white/10 text-blue-500 rounded-full transition border border-white/10"
-                      title="View / Print Tax Invoice"
-                    >
-                      <Printer className="w-4 h-4" />
-                    </button>
+                  <td className="p-4">
+                    <div className="flex items-center justify-end gap-2">
+                      {getPaymentStatus(inv) !== 'Paid' && (
+                        <button
+                          onClick={() => {
+                            setSelectedInvoiceForPayment(inv);
+                            setPaymentAmountInput(
+                              Math.max(
+                                0,
+                                Number(inv.grandTotal || 0) - Number(inv.paidAmount || 0)
+                              )
+                            );
+                            setPaymentModeInput('UPI');
+                            setPaymentDateInput(new Date().toISOString().split('T')[0]);
+                            setPaymentRemarksInput('');
+                          }}
+                          className="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-bold rounded-full border border-emerald-500/20 text-[10px] uppercase tracking-wider transition whitespace-nowrap"
+                        >
+                          Record Payment
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setSelectedInvoiceForHistory(inv)}
+                        className="p-2 bg-[#1a1a1a] hover:bg-white/10 text-sky-500 rounded-full transition border border-white/10 flex-shrink-0"
+                        title="View Payment History"
+                      >
+                        <History className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setSelectedInvoiceForPrint(inv)}
+                        className="p-2 bg-[#1a1a1a] hover:bg-white/10 text-blue-500 rounded-full transition border border-white/10 flex-shrink-0"
+                        title="View / Print Tax Invoice"
+                      >
+                        <Printer className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -705,37 +726,7 @@ const totalNonGstSales = invoices
               </div>
               )}
 
-              {isGstEnabled && (
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-[#d1d1d1] font-semibold mb-1">E-Way Bill #</label>
-                  <input
-                    type="text"
-                    value={eWayBillNo}
-                    onChange={(e) => setEWayBillNo(e.target.value)}
-                    className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl p-2.5 text-white focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[#d1d1d1] font-semibold mb-1">Transporter Name</label>
-                  <input
-                    type="text"
-                    value={transporterName}
-                    onChange={(e) => setTransporterName(e.target.value)}
-                    className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl p-2.5 text-white focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[#d1d1d1] font-semibold mb-1">LR Receipt #</label>
-                  <input
-                    type="text"
-                    value={lrNumber}
-                    onChange={(e) => setLrNumber(e.target.value)}
-                    className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl p-2.5 text-white focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-              </div>
-              )}
+
 
               {/* Items Table */}
               <div className="pt-2">
@@ -758,7 +749,7 @@ const totalNonGstSales = invoices
                     >
                       <div className="grid grid-cols-12 gap-2 items-center">
                         {/* Select Product from Catalog */}
-                        <div className="col-span-5">
+                        <div className="col-span-12 sm:col-span-5">
                           <label className="block text-[10px] text-[#d1d1d1]/50 uppercase tracking-wider mb-1">
                             Select Product *
                           </label>
@@ -779,7 +770,7 @@ const totalNonGstSales = invoices
                         </div>
 
                         {/* HSN Code (Auto) */}
-                        <div className="col-span-2">
+                        <div className="col-span-4 sm:col-span-2">
                           <label className="block text-[10px] text-[#d1d1d1]/50 uppercase tracking-wider mb-1">
                             HSN Code
                           </label>
@@ -789,7 +780,7 @@ const totalNonGstSales = invoices
                         </div>
 
                         {/* Selling Price (Auto) */}
-                        <div className="col-span-2">
+                        <div className="col-span-4 sm:col-span-2">
                           <label className="block text-[10px] text-[#d1d1d1]/50 uppercase tracking-wider mb-1">
                             Price (₹)
                           </label>
@@ -799,7 +790,7 @@ const totalNonGstSales = invoices
                         </div>
 
                         {/* GST Rate (Auto) */}
-                        <div className="col-span-2">
+                        <div className="col-span-3 sm:col-span-2">
                           <label className="block text-[10px] text-[#d1d1d1]/50 uppercase tracking-wider mb-1">
                             GST Rate
                           </label>
@@ -827,7 +818,7 @@ const totalNonGstSales = invoices
 
                       {/* User Input: Quantity & Discount */}
                       <div className="grid grid-cols-12 gap-3 items-center pt-2 border-t border-white/5">
-                        <div className="col-span-4">
+                        <div className="col-span-6 sm:col-span-4">
                           <label className="block text-[10px] text-[#d1d1d1]/50 uppercase tracking-wider mb-1">
                             Quantity / Meters *
                           </label>
@@ -841,7 +832,7 @@ const totalNonGstSales = invoices
                           />
                         </div>
 
-                        <div className="col-span-4">
+                        <div className="col-span-6 sm:col-span-4">
                           <label className="block text-[10px] text-[#d1d1d1]/50 uppercase tracking-wider mb-1">
                             Discount Amount (₹)
                           </label>
@@ -854,7 +845,7 @@ const totalNonGstSales = invoices
                           />
                         </div>
 
-                        <div className="col-span-4 text-right">
+                        <div className="col-span-12 sm:col-span-4 text-right sm:text-right flex sm:flex-col justify-between sm:justify-end items-center sm:items-end">
                           <span className="block text-[10px] text-[#d1d1d1]/50 uppercase tracking-wider mb-0.5">
                             {isGstEnabled ? 'Line Total (incl. GST)' : 'Line Total'}
                           </span>

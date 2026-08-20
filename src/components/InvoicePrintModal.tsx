@@ -228,9 +228,9 @@ export const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({
         </div>
 
         {/* Printable Area - Unified High-Fidelity Design */}
-        <div id="printable-invoice" className="bg-white text-slate-900 rounded-xl shadow-lg border border-slate-200 text-xs font-sans print:p-0 print:border-none print:shadow-none">
+        <div id="printable-invoice" className="bg-white text-slate-900 rounded-xl shadow-lg text-xs font-sans print:p-0 print:border-none print:shadow-none flex flex-col justify-between print:min-h-[277mm]">
 
-          <div className="p-6 sm:p-8 space-y-4 text-[10px] text-slate-800 leading-normal border-2 border-sky-600 rounded-lg print:border-sky-600 print:rounded-none">
+          <div className="p-6 sm:p-8 flex flex-col justify-between flex-1 space-y-4 text-[10px] text-slate-800 leading-normal rounded-lg print:p-0 print:rounded-none">
 
             {/* Dispatch Info / Company Meta Header */}
             <div className="flex justify-between items-start border-b border-sky-300 pb-3">
@@ -483,58 +483,62 @@ export const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({
             </div>
 
             {/* Bottom calculations & Bank details */}
-            <div className="grid grid-cols-12 gap-3 text-[10px] pt-1">
+            <div className="grid grid-cols-12 gap-3 text-[10px] pt-1 mt-auto">
               
               {/* Left Section: Bank details, Terms, UPI QR */}
-              <div className="col-span-7 space-y-3">
+              <div className="col-span-7 space-y-3 flex flex-col justify-between">
                 <div>
-                  <span className="font-extrabold text-blue-900 uppercase text-[9px] block mb-1">
-                    {invoice.isGstInvoice ? 'Total in words' : 'Total amount (in words):'}
-                  </span>
-                  <p className="font-bold text-slate-900 italic text-[9.5px]">
-                    {numberToIndianWords(Math.round(invoice.grandTotal))}
-                  </p>
-                </div>
-
-                {/* Bank & UPI QR Grid */}
-                <div className="border border-sky-300 p-2.5 rounded-lg bg-sky-50/50 grid grid-cols-10 gap-3">
-                  <div className="col-span-3 flex flex-col items-center justify-center bg-white p-1 border border-sky-200 rounded">
-                    <img 
-                      src={qrSrc} 
-                      alt="Pay using UPI"
-                      className="w-16 h-16 object-contain"
-                    />
-                    <span className="text-[7px] text-center font-bold text-slate-500 mt-1 uppercase tracking-wider">Pay using UPI</span>
+                  <div className="mb-2">
+                    <span className="font-extrabold text-blue-900 uppercase text-[9px] block mb-1">
+                      {invoice.isGstInvoice ? 'Total in words' : 'Total amount (in words):'}
+                    </span>
+                    <p className="font-bold text-slate-900 italic text-[9.5px]">
+                      {numberToIndianWords(Math.round(invoice.grandTotal))}
+                    </p>
                   </div>
-                  
-                  <div className="col-span-7 space-y-0.5 text-[9px] text-slate-700">
-                    <p className="font-extrabold text-blue-900 text-[10px] border-b border-sky-200/50 pb-0.5">Bank Details</p>
-                    <p><strong className="text-slate-900">Name:</strong> {company?.bank_name || (invoice.isGstInvoice ? 'AXIS BANK' : 'RAHUL CHAUHAN')}</p>
-                    <p><strong className="text-slate-900">Branch:</strong> {company?.bank_branch || (invoice.isGstInvoice ? 'TRANS YAMUNA COLONY PHASE -1' : 'GANDHI NAGAR')}</p>
-                    <p><strong className="text-slate-900">Acc. Name:</strong> {company?.account_name || (invoice.isGstInvoice ? 'JAI SHIV TRADING COMPANY' : 'RAHUL CHAUHAN')}</p>
-                    <p><strong className="text-slate-900">Acc. Number:</strong> <span className="font-mono font-bold text-slate-955">{company?.account_number || (invoice.isGstInvoice ? '924020037111248' : '6475108000034')}</span></p>
-                    <p><strong className="text-slate-900">IFSC:</strong> <span className="font-mono font-bold text-slate-955">{company?.ifsc_code || (invoice.isGstInvoice ? 'UTIB0003333' : 'CNRB0006475')}</span></p>
-                    <p><strong className="text-slate-900">UPI ID:</strong> <span className="font-mono font-bold text-blue-800">{company?.upi_id || '9027538830@AXISBANK'}</span></p>
+
+                  {/* Bank & UPI QR Grid */}
+                  <div className="border border-sky-300 p-2.5 rounded-lg bg-sky-50/50 grid grid-cols-10 gap-3">
+                    <div className="col-span-3 flex flex-col items-center justify-center bg-white p-1 border border-sky-200 rounded">
+                      <img 
+                        src={qrSrc} 
+                        alt="Pay using UPI"
+                        className="w-16 h-16 object-contain"
+                      />
+                      <span className="text-[7px] text-center font-bold text-slate-500 mt-1 uppercase tracking-wider">Pay using UPI</span>
+                    </div>
+                    
+                    <div className="col-span-7 space-y-0.5 text-[9px] text-slate-700">
+                      <p className="font-extrabold text-blue-900 text-[10px] border-b border-sky-200/50 pb-0.5">Bank Details</p>
+                      <p><strong className="text-slate-900">Name:</strong> {company?.bank_name || (invoice.isGstInvoice ? 'AXIS BANK' : 'RAHUL CHAUHAN')}</p>
+                      <p><strong className="text-slate-900">Branch:</strong> {company?.bank_branch || (invoice.isGstInvoice ? 'TRANS YAMUNA COLONY PHASE -1' : 'GANDHI NAGAR')}</p>
+                      <p><strong className="text-slate-900">Acc. Name:</strong> {company?.account_name || (invoice.isGstInvoice ? 'JAI SHIV TRADING COMPANY' : 'RAHUL CHAUHAN')}</p>
+                      <p><strong className="text-slate-900">Acc. Number:</strong> <span className="font-mono font-bold text-slate-955">{company?.account_number || (invoice.isGstInvoice ? '924020037111248' : '6475108000034')}</span></p>
+                      <p><strong className="text-slate-900">IFSC:</strong> <span className="font-mono font-bold text-slate-955">{company?.ifsc_code || (invoice.isGstInvoice ? 'UTIB0003333' : 'CNRB0006475')}</span></p>
+                      <p><strong className="text-slate-900">UPI ID:</strong> <span className="font-mono font-bold text-blue-800">{company?.upi_id || '9027538830@AXISBANK'}</span></p>
+                    </div>
                   </div>
                 </div>
 
-                {/* Terms & Conditions */}
-                <div>
-                  <span className="font-extrabold text-blue-900 uppercase text-[9px] block mb-1">
-                    Terms and Conditions
-                  </span>
-                  <ol className="list-decimal list-inside space-y-0.5 text-[8.5px] text-slate-600 leading-tight">
-                    <li>Subject to our home Jurisdiction.</li>
-                    <li>Our Responsibility Ceases as soon as goods leaves our Premises.</li>
-                    <li>Goods once sold will not taken back.</li>
-                    <li>Delivery Ex-Premises.</li>
-                  </ol>
-                </div>
+                {/* Terms & Conditions and Signature Section */}
+                <div className="pt-2 flex flex-col flex-1 justify-between">
+                  <div>
+                    <span className="font-extrabold text-blue-900 uppercase text-[9px] block mb-1">
+                      Terms and Conditions
+                    </span>
+                    <ol className="list-decimal list-inside space-y-0.5 text-[8.5px] text-slate-600 leading-tight">
+                      <li>Subject to our home Jurisdiction.</li>
+                      <li>Our Responsibility Ceases as soon as goods leaves our Premises.</li>
+                      <li>Goods once sold will not taken back.</li>
+                      <li>Delivery Ex-Premises.</li>
+                    </ol>
+                  </div>
 
-                {/* Customer Signature Box */}
-                <div className="pt-2">
-                  <div className="w-32 border-t border-slate-400 pt-1 text-[9px] text-slate-500 font-bold text-center">
-                    Customer Signature
+                  {/* Customer Signature Box aligned to bottom */}
+                  <div className="pt-8">
+                    <div className="w-32 border-t border-slate-400 pt-1 text-[9px] text-slate-500 font-bold text-center">
+                      Customer Signature
+                    </div>
                   </div>
                 </div>
               </div>
@@ -592,8 +596,8 @@ export const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({
                 </div>
 
                 {/* Certified Note & Authorized Signatory */}
-                <div className="w-full space-y-4 pt-4 flex flex-col items-end">
-                  <p className="text-[8px] text-slate-600 font-semibold italic text-center w-full">
+                <div className="w-full space-y-4 pt-4 flex flex-col items-end flex-1 justify-end">
+                  <p className="text-[8px] text-slate-600 font-semibold italic text-center w-full mb-auto">
                     Certified that the particulars given above are true and correct.
                   </p>
                   <div className="text-center w-full">
@@ -612,7 +616,7 @@ export const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({
             </div>
 
           </div>
-          <div className="text-center text-[7.5px] text-slate-400 pb-3.5 font-bold uppercase tracking-wider print:text-slate-500">
+          <div className="text-center text-[10px] text-slate-400 pb-3.5 pt-2 font-bold uppercase tracking-wider print:text-slate-500">
             Powered by Nexsham Technologies
           </div>
         </div>

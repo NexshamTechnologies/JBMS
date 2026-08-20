@@ -73,7 +73,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'analytics',
-      label: 'Reports & Analytics',
+      label: 'Reports',
       icon: BarChart3,
       badge: null
     },
@@ -131,7 +131,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+                    onClose();
+                  }
+                }}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-full text-xs uppercase tracking-widest font-semibold transition-all group ${isActive
                     ? 'bg-blue-600 text-white font-bold shadow-lg shadow-blue-500/20'
                     : 'text-[#d1d1d1]/70 hover:bg-white/5 hover:text-white'
@@ -142,7 +147,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     className={`w-4 h-4 transition-colors ${isActive ? 'text-white' : 'text-[#d1d1d1]/40 group-hover:text-blue-500'
                       }`}
                   />
-                  <span>{item.label}</span>
+                  <span className="whitespace-nowrap">{item.label}</span>
                 </div>
 
                 <div className="flex items-center gap-2">

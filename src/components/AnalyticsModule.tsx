@@ -669,22 +669,6 @@ export const AnalyticsModule: React.FC<AnalyticsModuleProps> = ({
             Filters
           </button>
 
-          <button
-            onClick={exportCSV}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-full text-[10px] font-bold border bg-[#1a1a1a] text-emerald-500 border-white/10 hover:border-emerald-500 transition uppercase tracking-wider"
-          >
-            <Download className="w-3.5 h-3.5" />
-            Excel
-          </button>
-
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-full text-[10px] font-bold border bg-[#1a1a1a] text-[#d1d1d1] border-white/10 hover:border-blue-500 hover:text-blue-500 transition uppercase tracking-wider"
-          >
-            <Printer className="w-3.5 h-3.5" />
-            Print
-          </button>
-
         </div>
       </div>
 
