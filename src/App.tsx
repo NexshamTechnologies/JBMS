@@ -708,17 +708,15 @@ const handleResetToDefaults = () => {
             />
           )}
 
-          {/*
           {activeTab === 'analytics' && allowedTabs.includes('analytics') && (
             <AnalyticsModule
-  invoices={invoices}
-  parties={parties}
-  payments={payments}
-  products={products}
-  theme={theme}
-/>
+              invoices={invoices}
+              parties={parties}
+              payments={payments}
+              products={products}
+              theme={theme}
+            />
           )}
-          */}
 
           {activeTab === 'customers' && allowedTabs.includes('customers') && (
             <CustomersModule
@@ -745,7 +743,6 @@ const handleResetToDefaults = () => {
             />
           )}
 
-          {/*
           {activeTab === 'customer-ledger' && allowedTabs.includes('customer-ledger') && (
             <CustomerLedgerModule
               parties={parties}
@@ -772,7 +769,6 @@ const handleResetToDefaults = () => {
               }}
             />
           )}
-          */}
         </main>
       </div>
     </div>

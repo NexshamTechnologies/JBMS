@@ -48,14 +48,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Boxes,
       badge: null
     },
-    /*
     {
       id: 'customer-ledger',
       label: 'Customer Ledger',
       icon: Users,
       badge: null
     },
-    */
     {
       id: 'customers',
       label: 'Customers',
@@ -68,7 +66,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: CreditCard,
       badge: null
     },
-    /*
     {
       id: 'settings',
       label: 'Settings',
@@ -87,7 +84,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: BarChart3,
       badge: null
     }
-    */
   ];
 
   // Filter sidebar items based on UserRole RBAC rules
@@ -159,7 +155,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
           <div className="flex items-center justify-between">
             <span className="text-[#d1d1d1]/60 text-[11px]">Accessible Modules</span>
-            <span className="font-bold text-blue-600 dark:text-blue-400">{visibleNavItems.length} / 5</span>
+            <span className="font-bold text-blue-600 dark:text-blue-400">{allowedTabs.length} / 9</span>
           </div>
           <div className="mt-2 pt-2 border-t border-white/5 flex items-center gap-2 text-[10px] uppercase tracking-wider text-emerald-500 font-semibold">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>

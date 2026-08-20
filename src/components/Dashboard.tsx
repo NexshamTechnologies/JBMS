@@ -203,9 +203,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               { label: 'Customers', count: `${customers.length} Accounts`, tab: 'customers', icon: Users, color: 'text-sky-500' },
               { label: 'Product Catalog', count: `${products.length} Products`, tab: 'product-catalog', icon: Boxes, color: 'text-blue-500' },
               { label: 'Payment Records', count: `${payments.length} Records`, tab: 'payments', icon: CreditCard, color: 'text-emerald-500' },
-              /*
               { label: 'Customer Ledger', count: 'Ledger Summaries', tab: 'customer-ledger', icon: Receipt, color: 'text-indigo-500' },
-              */
             ].map((item) => {
               const Icon = item.icon;
               return (
