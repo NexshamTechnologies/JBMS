@@ -98,6 +98,7 @@ const handleSubmit = async (
       city: form.address.split(',').pop()?.trim() || '',
       state: '',
       gstin: form.gstin,
+      pan: form.pan,
       creditLimit: 0,
       currentBalance: 0,
       address: form.address

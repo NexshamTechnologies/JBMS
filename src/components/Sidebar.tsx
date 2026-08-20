@@ -9,7 +9,8 @@ import {
   ChevronRight,
   CreditCard,
   Database,
-  ShieldCheck
+  ShieldCheck,
+  X
 } from 'lucide-react';
 import { UserRole, ROLE_PERMISSIONS } from '../types';
 
@@ -18,13 +19,17 @@ interface SidebarProps {
   setActiveTab: (tab: string) => void;
   unpaidInvoicesCount: number;
   userRole: UserRole;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   setActiveTab,
   unpaidInvoicesCount,
-  userRole
+  userRole,
+  isOpen,
+  onClose
 }) => {
   const allowedTabs = ROLE_PERMISSIONS[userRole] || ROLE_PERMISSIONS.Owner;
 
@@ -90,13 +95,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const visibleNavItems = allNavItems.filter((item) => allowedTabs.includes(item.id));
 
   return (
-    <aside className="w-full lg:w-64 lg:sticky lg:top-[61px] lg:h-[calc(100vh-61px)] bg-[#0a0a0a] border-r border-white/10 flex-shrink-0 flex flex-col justify-between select-none">
-      <div className="p-3 lg:p-4 space-y-1 flex-1 flex flex-col min-h-0">
-        <div className="px-3 py-2 flex items-center justify-between flex-shrink-0">
-          <span className="text-[10px] font-bold tracking-[0.25em] text-blue-600 dark:text-blue-400 uppercase">
-            Management Modules
-          </span>
-        </div>
+    <>
+      {/* Mobile backdrop overlay */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300"
+          onClick={onClose}
+        />
+      )}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 w-64 bg-[#0a0a0a] border-r border-white/10 flex-shrink-0 flex flex-col justify-between select-none transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 lg:h-[calc(100vh-61px)] lg:sticky lg:top-[61px] ${
+          isOpen ? 'translate-x-0' : '-translate-x-full lg:hidden'
+        }`}
+      >
+        <div className="p-3 lg:p-4 space-y-1 flex-1 flex flex-col min-h-0">
+          <div className="px-3 py-2 flex items-center justify-between flex-shrink-0">
+            <span className="text-[10px] font-bold tracking-[0.25em] text-blue-600 dark:text-blue-400 uppercase">
+              Management Modules
+            </span>
+            <button
+              onClick={onClose}
+              className="p-1 text-[#d1d1d1]/50 hover:text-white rounded-lg hover:bg-white/10 lg:hidden"
+              title="Close Sidebar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
 
         <nav className="space-y-1 overflow-y-auto flex-1 pr-1">
           {visibleNavItems.map((item) => {
@@ -168,5 +193,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
     </aside>
+    </>
   );
 };

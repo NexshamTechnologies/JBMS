@@ -117,8 +117,28 @@ function App() {
 
   // Navigation
   const [activeTab, setActiveTab] = useState<string>('dashboard');
-  const [globalSearch, setGlobalSearch] = useState<string>('');
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
+  const [billingSearch, setBillingSearch] = useState<string>('');
+  const [productSearch, setProductSearch] = useState<string>('');
+  const [customersSearch, setCustomersSearch] = useState<string>('');
+  const [paymentsSearch, setPaymentsSearch] = useState<string>('');
+  const [ledgerSearch, setLedgerSearch] = useState<string>('');
 
+  // Handle responsive sidebar open/close state on load and resize
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const handleResize = () => {
+        if (window.innerWidth < 1024) {
+          setSidebarOpen(false);
+        } else {
+          setSidebarOpen(true);
+        }
+      };
+      handleResize();
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }
+  }, []);
 
   // Role permissions protection
   const allowedTabs = ROLE_PERMISSIONS[userRole] || ROLE_PERMISSIONS.Owner;
@@ -128,6 +148,15 @@ function App() {
       setActiveTab('dashboard');
     }
   }, [userRole, activeTab, allowedTabs]);
+
+  // Reset all search filters when switching tabs
+  useEffect(() => {
+    setBillingSearch('');
+    setProductSearch('');
+    setCustomersSearch('');
+    setPaymentsSearch('');
+    setLedgerSearch('');
+  }, [activeTab]);
 
   // Theme State
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -644,6 +673,7 @@ const handleResetToDefaults = () => {
           activeTab={activeTab}
           theme={theme}
           toggleTheme={toggleTheme}
+          onToggleSidebar={() => setSidebarOpen(prev => !prev)}
         />
 
       <div className="flex-1 flex flex-col lg:flex-row">
@@ -655,6 +685,8 @@ const handleResetToDefaults = () => {
             invoices.filter((inv) => inv.status !== 'Paid').length
           }
           userRole={userRole}
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
         />
 
         {/* Main Content Area */}
@@ -688,8 +720,8 @@ const handleResetToDefaults = () => {
               products={products}
               onCreateInvoice={handleCreateInvoice}
               onAddPayment={handleAddPayment}
-              searchTerm={globalSearch}
-              setSearchTerm={setGlobalSearch}
+              searchTerm={billingSearch}
+              setSearchTerm={setBillingSearch}
               isOpenNewInvoiceModal={isOpenNewInvoiceModal}
               setIsOpenNewInvoiceModal={setIsOpenNewInvoiceModal}
             />
@@ -701,8 +733,8 @@ const handleResetToDefaults = () => {
               onAddProduct={handleAddProduct}
               onUpdateProduct={handleUpdateProduct}
               onDeleteProduct={handleDeleteProduct}
-              searchTerm={globalSearch}
-              setSearchTerm={setGlobalSearch}
+              searchTerm={productSearch}
+              setSearchTerm={setProductSearch}
             />
           )}
 
@@ -723,8 +755,8 @@ const handleResetToDefaults = () => {
               onUpdateParty={handleUpdateParty}
               onDeleteParty={handleDeleteParty}
               onToggleBlock={handleToggleBlock}
-              searchTerm={globalSearch}
-              setSearchTerm={setGlobalSearch}
+              searchTerm={customersSearch}
+              setSearchTerm={setCustomersSearch}
             />
           )}
 
@@ -736,8 +768,8 @@ const handleResetToDefaults = () => {
               onAddPayment={handleAddPayment}
               onUpdatePayment={handleUpdatePayment}
               onDeletePayment={handleDeletePayment}
-              searchTerm={globalSearch}
-              setSearchTerm={setGlobalSearch}
+              searchTerm={paymentsSearch}
+              setSearchTerm={setPaymentsSearch}
             />
           )}
 
@@ -747,8 +779,8 @@ const handleResetToDefaults = () => {
               ledgerEntries={ledgerEntries}
               invoices={invoices}
               payments={payments}
-              searchTerm={globalSearch}
-              setSearchTerm={setGlobalSearch}
+              searchTerm={ledgerSearch}
+              setSearchTerm={setLedgerSearch}
             />
           )}
 

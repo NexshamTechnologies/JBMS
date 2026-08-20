@@ -54,7 +54,7 @@ export const ProductCatalogModule: React.FC<ProductCatalogModuleProps> = ({
     name: '',
     category: '',
     fabricType: '',
-    unit: '',
+    unit: 'PCS',
     hsnCode: '',
     gstRate: 0,
     sellingPrice: 0
@@ -65,7 +65,7 @@ export const ProductCatalogModule: React.FC<ProductCatalogModuleProps> = ({
       name: '',
       category: '',
       fabricType: '',
-      unit: '',
+      unit: 'PCS',
       hsnCode: '',
       gstRate: 0,
       sellingPrice: 0
@@ -165,9 +165,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <th className="p-3.5">Name</th>
                 <th className="p-3.5">Category</th>
                 <th className="p-3.5">Fabric Type</th>
-                <th className="p-3.5">Unit</th>
                 <th className="p-3.5">HSN Code</th>
-                <th className="p-3.5">GST %</th>
                 <th className="p-3.5">Price</th>
                 <th className="p-3.5 text-right">Actions</th>
               </tr>
@@ -175,7 +173,7 @@ const handleSubmit = async (e: React.FormEvent) => {
             <tbody className="divide-y divide-white/5">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-[#d1d1d1]/50">No products found.</td>
+                  <td colSpan={6} className="p-8 text-center text-[#d1d1d1]/50">No products found.</td>
                 </tr>
               ) : (
                 filtered.map(p => (
@@ -183,9 +181,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                     <td className="p-3.5 font-bold text-blue-500">{p.name}</td>
                     <td className="p-3.5">{p.category || '—'}</td>
                     <td className="p-3.5">{p.fabricType || '—'}</td>
-                    <td className="p-3.5">{p.unit}</td>
                     <td className="p-3.5">{p.hsnCode}</td>
-                    <td className="p-3.5">{p.gstRate}%</td>
                     <td className="p-3.5">₹{p.sellingPrice}</td>
                     <td className="p-3.5 text-right">
                       <button onClick={() => openEdit(p)} className="p-1.5 bg-[#1a1a1a] hover:bg-white/10 text-blue-500 rounded-full transition border border-white/5 mr-2" title="Edit">
@@ -254,16 +250,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                   <input value={form.fabricType} onChange={e => setForm({ ...form, fabricType: e.target.value })} className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl p-2.5 text-white focus:border-blue-500 focus:outline-none" />
                 </div>
                 <div>
-                  <label className="block text-[#d1d1d1] font-semibold mb-1">Unit *</label>
-                  <input value={form.unit} onChange={e => setForm({ ...form, unit: e.target.value })} required className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl p-2.5 text-white focus:border-blue-500 focus:outline-none" />
-                </div>
-                <div>
                   <label className="block text-[#d1d1d1] font-semibold mb-1">HSN Code</label>
                   <input value={form.hsnCode} onChange={e => setForm({ ...form, hsnCode: e.target.value })} className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl p-2.5 text-white focus:border-blue-500 focus:outline-none" />
-                </div>
-                <div>
-                  <label className="block text-[#d1d1d1] font-semibold mb-1">GST Rate %</label>
-                  <input type="number" min="0" value={form.gstRate === 0 ? '' : form.gstRate} onChange={e => setForm({ ...form, gstRate: Number(e.target.value) })} className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl p-2.5 text-white focus:border-blue-500 focus:outline-none" />
                 </div>
                 <div>
                   <label className="block text-[#d1d1d1] font-semibold mb-1">Selling Price *</label>

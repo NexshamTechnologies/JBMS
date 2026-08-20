@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   Receipt,
-  Plus,
   Search,
   Printer,
   IndianRupee,
