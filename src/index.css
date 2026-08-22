@@ -1,75 +1,161 @@
 @import "tailwindcss";
 
+@theme {
+  --color-blue-50: var(--bg-hover-row);
+  --color-blue-500: var(--primary);
+  --color-blue-600: var(--primary-btn);
+  --color-blue-700: var(--primary-hover);
+  --color-indigo-500: var(--primary);
+  --color-indigo-600: var(--primary-btn);
+  --color-indigo-700: var(--primary-hover);
+  --color-sky-500: var(--primary);
+  --color-sky-600: var(--primary-btn);
+}
+
 :root {
-  /* Dark Theme Colors (Default) */
-  --bg-app: #0f172a;
-  --bg-card: #1e293b;
-  --bg-sidebar: #111827;
-  --bg-header: #1e293b;
-  --bg-element: #1e293b;
-  --bg-input: #1e293b;
-  --bg-table-header: #334155;
-  --bg-hover-row: #293548;
+  /* ==========================================================================
+     DARK THEME: Mahogany Ink & Rich Crimson Berry (Default)
+     ========================================================================== */
+  --bg-app: #0F0B0B;               /* Deepest Velvet Mahogany */
+  --bg-sidebar: #171212;           
+  --bg-card: #1F1818;              /* Soft Espresso Surface */
+  --bg-element: #2A2121;           /* Elevated structural containers */
+  --border: #362B2B;               
 
-  --primary: #3b82f6;
-  --primary-hover: #2563eb;
-  --primary-active: #1d4ed8;
-  --primary-btn: #3b82f6;
-  --primary-btn-hover: #2563eb;
-  --primary-btn-text: #ffffff;
+  /* Brand Accents (Crimson Berry) */
+  --primary: #E11D48;              /* Elegant Deep Berry Crimson */
+  --primary-hover: #FB7185;        
+  --primary-soft: #2D1418;         /* Rich Wine Underlay / Active Nav */
 
-  --text-main: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-muted: #94a3b8;
-  --text-white: #f8fafc;
+  /* Typography */
+  --text-main: #F9F6F6;            /* Alabaster Silk White */
+  --text-secondary: #C7BDBB;       /* Warm Cashmere Slate */
+  --text-muted: #8F8381;           /* Muted Taupe */
 
-  --border-w10: #334155;
-  --border-w5: rgba(51, 65, 85, 0.5);
-  --border-w15: #475569;
+  /* Sidebar Tokens */
+  --sidebar-nav-normal: #C7BDBB;
+  --sidebar-icon-normal: #8F8381;
+  --sidebar-nav-active-bg: #2D1418;
+  --sidebar-nav-active-text: #FB7185;
+  --sidebar-icon-active: #FB7185;
 
-  --scrollbar-track: #0f172a;
-  --scrollbar-thumb: #334155;
+  /* Primary Button Tokens */
+  --btn-primary-bg: #E11D48;
+  --btn-primary-hover: #BE123C;     
+  --btn-primary-text: #FFFFFF;     
 
-  --status-success: #22c55e;
-  --status-warning: #f59e0b;
-  --status-danger: #ef4444;
-  --status-info: #0ea5e9;
+  /* Tables */
+  --table-bg: #1F1818;
+  --table-header-bg: #171212;
+  --table-header-text: #C7BDBB;
+  --table-body-text: #F9F6F6;
+  --table-border: #362B2B;
+  --table-hover: #261E1E;
+  --table-selected-bg: #2D1418;
+  --table-selected-text: #E11D48;
+
+  /* Inputs */
+  --input-bg: #1F1818;
+  --input-border: #362B2B;
+  --input-text: #F9F6F6;
+  --input-placeholder: #8F8381;
+  --input-focus: #E11D48;
+
+  /* Semantic Status Colors (100% Blue-Free) */
+  --status-success: #16A34A;      
+  --status-warning: #EA580C;      
+  --status-danger: #DC2626;       
+  --status-info: #D97706;         /* Pure Golden Amber Alert */
+  --status-neutral: #94A3B8;
+
+  /* Backwards compatibility variables */
+  --bg-header: #171212;
+  --bg-input: #1F1818;
+  --bg-table-header: #171212;
+  --bg-hover-row: #261E1E;
+  --primary-btn: #E11D48;
+  --primary-btn-hover: #BE123C;
+  --primary-btn-text: #FFFFFF;
+  --primary-active: #BE123C;
+  --text-white: #ffffff;
+  --border-w10: #362B2B;
+  --border-w5: rgba(54, 43, 43, 0.5);
+  --border-w15: #473a3a;
+  --scrollbar-track: #0F0B0B;
+  --scrollbar-thumb: #362B2B;
 }
 
 html.light {
-  /* Light Theme Colors */
-  --bg-app: #f8fafc;
-  --bg-card: #ffffff;
-  --bg-sidebar: #ffffff;
-  --bg-header: #ffffff;
-  --bg-element: #f1f5f9;
-  --bg-input: #ffffff;
-  --bg-table-header: #f1f5f9;
-  --bg-hover-row: #eff6ff;
+  /* ==========================================================================
+     LIGHT THEME: Luxury Linen & Rich Crimson Berry
+     ========================================================================== */
+  --bg-app: #F5F3F2;               /* Smooth Linen Fabric Canvas */
+  --bg-sidebar: #FFFFFF;           
+  --bg-card: #FFFFFF;              
+  --bg-element: #EAE5E2;           /* Beautiful Cashmere structural blocks */
+  --border: #D6CECA;               
 
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
-  --primary-active: #1e40af;
-  --primary-btn: #2563eb;
-  --primary-btn-hover: #1d4ed8;
-  --primary-btn-text: #ffffff;
+  /* Brand Accents */
+  --primary: #BE123C;              /* Solid Crimson for maximum data legibility */
+  --primary-hover: #9F1239;        
+  --primary-soft: #FFF1F2;         /* Crisp Rose-Petal Tint / Active Nav */
 
-  --text-main: #0f172a;
-  --text-secondary: #64748b;
-  --text-muted: #94a3b8;
-  --text-white: #0f172a;
+  /* Typography */
+  --text-main: #1F1616;            /* Deep Espresso Coffee Ink */
+  --text-secondary: #5E5250;       /* Saturated Sepia-Charcoal */
+  --text-muted: #A39694;           
 
-  --border-w10: #cbd5e1;
-  --border-w5: rgba(203, 213, 225, 0.6);
-  --border-w15: #94a3b8;
+  /* Sidebar Tokens */
+  --sidebar-nav-normal: #5E5250;
+  --sidebar-icon-normal: #A39694;
+  --sidebar-nav-active-bg: #FFF1F2;
+  --sidebar-nav-active-text: #BE123C;
+  --sidebar-icon-active: #BE123C;
 
-  --scrollbar-track: #f8fafc;
-  --scrollbar-thumb: #cbd5e1;
+  /* Primary Button Tokens */
+  --btn-primary-bg: #BE123C;
+  --btn-primary-hover: #9F1239;
+  --btn-primary-text: #FFFFFF;
 
-  --status-success: #22c55e;
-  --status-warning: #f59e0b;
-  --status-danger: #ef4444;
-  --status-info: #0ea5e9;
+  /* Tables */
+  --table-bg: #FFFFFF;
+  --table-header-bg: #EAE5E2;
+  --table-header-text: #5E5250;
+  --table-body-text: #1F1616;
+  --table-border: #D6CECA;
+  --table-hover: #FAF8F7;
+  --table-selected-bg: #FFF1F2;
+  --table-selected-text: #9F1239;
+
+  /* Inputs */
+  --input-bg: #FFFFFF;
+  --input-border: #D6CECA;
+  --input-text: #1F1616;
+  --input-placeholder: #A39694;
+  --input-focus: #BE123C;
+
+  /* Semantic Status Colors */
+  --status-success: #15803D;      
+  --status-warning: #C2410C;      
+  --status-danger: #991B1B;       
+  --status-info: #B45309;         
+  --status-neutral: #64748B;
+
+  /* Backwards compatibility variables */
+  --bg-header: #FFFFFF;
+  --bg-input: #FFFFFF;
+  --bg-table-header: #EAE5E2;
+  --bg-hover-row: #FAF8F7;
+  --primary-btn: #BE123C;
+  --primary-btn-hover: #9F1239;
+  --primary-btn-text: #FFFFFF;
+  --primary-active: #9F1239;
+  --text-white: #1F1616;
+  --border-w10: #D6CECA;
+  --border-w5: rgba(214, 206, 202, 0.5);
+  --border-w15: #d6ceca;
+  --scrollbar-track: #F5F3F2;
+  --scrollbar-thumb: #D6CECA;
 }
 
 @layer base {
@@ -105,6 +191,72 @@ html.light {
 
 /* Centralized theme overrides & legacy utility classes mapping */
 @layer utilities {
+  /* Absolute Blue, Indigo, and Sky Color Purge - Mapping directly to theme primary properties */
+  .text-blue-600,
+  .text-blue-500,
+  .text-blue-400,
+  .text-indigo-600,
+  .text-indigo-500,
+  .text-indigo-400,
+  .text-sky-600,
+  .text-sky-500,
+  .text-sky-400,
+  .dark\:text-blue-400,
+  .dark\:text-blue-500 {
+    color: var(--primary) !important;
+  }
+  
+  .bg-blue-600,
+  .bg-blue-500,
+  .bg-indigo-600,
+  .bg-indigo-500,
+  .bg-sky-600,
+  .bg-sky-500 {
+    background-color: var(--primary-btn) !important;
+    color: var(--primary-btn-text) !important;
+  }
+  
+  .hover\:bg-blue-700:hover,
+  .hover\:bg-blue-600:hover,
+  .hover\:bg-indigo-700:hover,
+  .hover\:bg-sky-700:hover {
+    background-color: var(--primary-btn-hover) !important;
+  }
+
+  .border-blue-500,
+  .border-blue-600,
+  .border-indigo-500,
+  .border-sky-500 {
+    border-color: var(--primary) !important;
+  }
+  
+  /* Opacity variants mapping for backgrounds and borders */
+  .bg-blue-500\/10,
+  .bg-blue-600\/10,
+  .bg-indigo-500\/10,
+  .bg-indigo-500\/5,
+  .bg-sky-500\/10 {
+    background-color: color-mix(in srgb, var(--primary) 10%, transparent) !important;
+  }
+  
+  .bg-blue-500\/15,
+  .bg-indigo-500\/15,
+  .bg-sky-500\/15 {
+    background-color: color-mix(in srgb, var(--primary) 15%, transparent) !important;
+  }
+  
+  .border-blue-500\/20,
+  .border-blue-500\/30,
+  .border-indigo-500\/20,
+  .border-sky-500\/20 {
+    border-color: color-mix(in srgb, var(--primary) 20%, transparent) !important;
+  }
+
+  .shadow-blue-500\/20 {
+    box-shadow: 0 10px 15px -3px color-mix(in srgb, var(--primary) 20%, transparent), 
+                0 4px 6px -4px color-mix(in srgb, var(--primary) 20%, transparent) !important;
+  }
+
   .bg-\[\#0a0a0a\] {
     background-color: var(--bg-app) !important;
   }
@@ -199,22 +351,31 @@ html.light {
     color: var(--text-main) !important;
   }
 
-  /* Text Opacity overrides */
+  /* Text Opacity overrides - Dark mode uses opacity */
   .text-\[\#d1d1d1\]\/30 {
     color: color-mix(in srgb, var(--text-secondary) 30%, transparent) !important;
   }
+
+  .text-\[\#d1d1d1\]\/35 {
+    color: color-mix(in srgb, var(--text-secondary) 65%, transparent) !important;
+  }
+
   .text-\[\#d1d1d1\]\/40 {
     color: color-mix(in srgb, var(--text-secondary) 40%, transparent) !important;
   }
+
   .text-\[\#d1d1d1\]\/50 {
     color: color-mix(in srgb, var(--text-secondary) 50%, transparent) !important;
   }
+
   .text-\[\#d1d1d1\]\/60 {
     color: color-mix(in srgb, var(--text-secondary) 60%, transparent) !important;
   }
+
   .text-\[\#d1d1d1\]\/70 {
     color: color-mix(in srgb, var(--text-secondary) 70%, transparent) !important;
   }
+
   .placeholder-\[\#d1d1d1\]\/40::placeholder {
     color: color-mix(in srgb, var(--text-secondary) 40%, transparent) !important;
   }
@@ -222,15 +383,122 @@ html.light {
   .text-white\/40 {
     color: color-mix(in srgb, var(--text-main) 40%, transparent) !important;
   }
+
   .text-white\/50 {
     color: color-mix(in srgb, var(--text-main) 50%, transparent) !important;
   }
+
   .text-white\/60 {
     color: color-mix(in srgb, var(--text-main) 60%, transparent) !important;
   }
+
   .text-white\/70 {
     color: color-mix(in srgb, var(--text-main) 70%, transparent) !important;
   }
+
+  .hover\:text-\[\#d1d1d1\]\/60:hover {
+    color: var(--text-main) !important;
+  }
+}
+
+/* Light Mode high-contrast opaque color overrides & weight enhancements (flat selectors to avoid IDE linter warnings) */
+html.light .text-\[\#d1d1d1\]\/30 {
+  color: color-mix(in srgb, var(--text-secondary) 75%, transparent) !important;
+  font-weight: 600 !important;
+}
+
+html.light .text-\[\#d1d1d1\]\/35 {
+  color: var(--text-secondary) !important;
+  font-weight: 750 !important;
+}
+
+html.light .text-\[\#d1d1d1\]\/40 {
+  color: var(--text-secondary) !important;
+  font-weight: 600 !important;
+}
+
+html.light .text-\[\#d1d1d1\]\/50 {
+  color: var(--text-secondary) !important;
+  font-weight: 700 !important;
+}
+
+html.light .text-\[\#d1d1d1\]\/60 {
+  color: var(--text-main) !important;
+  font-weight: 700 !important;
+}
+
+html.light .text-\[\#d1d1d1\]\/70 {
+  color: var(--text-main) !important;
+  font-weight: 700 !important;
+}
+
+html.light .placeholder-\[\#d1d1d1\]\/40::placeholder {
+  color: var(--text-muted) !important;
+}
+
+html.light .text-white\/40 {
+  color: var(--text-secondary) !important;
+  font-weight: 600 !important;
+}
+
+html.light .text-white\/50 {
+  color: var(--text-secondary) !important;
+  font-weight: 700 !important;
+}
+
+html.light .text-white\/60 {
+  color: var(--text-main) !important;
+  font-weight: 700 !important;
+}
+
+html.light .text-white\/70 {
+  color: var(--text-main) !important;
+  font-weight: 700 !important;
+}
+
+html.light .font-semibold {
+  font-weight: 750 !important;
+}
+
+html.light .font-bold {
+  font-weight: 800 !important;
+}
+
+html.light .font-medium {
+  font-weight: 650 !important;
+}
+
+html.light th {
+  font-weight: 800 !important;
+  color: var(--text-main) !important;
+}
+
+html.light td {
+  color: var(--text-main);
+}
+
+html.light aside button {
+  font-weight: 750 !important;
+}
+
+html.light .text-blue-500 {
+  color: var(--primary) !important;
+  font-weight: 800 !important;
+}
+
+html.light .text-emerald-500 {
+  color: var(--status-success) !important;
+  font-weight: 800 !important;
+}
+
+html.light .text-rose-500 {
+  color: var(--status-danger) !important;
+  font-weight: 800 !important;
+}
+
+html.light .text-amber-500 {
+  color: var(--status-warning) !important;
+  font-weight: 800 !important;
 }
 
 @media print {

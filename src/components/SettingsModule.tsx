@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase';
 import {
   Settings,
   Building2,
-  Receipt,
   Users,
   Monitor,
   Save,
@@ -23,8 +22,6 @@ import { UserRole } from '../types';
 import {
   getCompanySettings,
   updateCompanySettings,
-  getInvoiceSettings,
-  updateInvoiceSettings,
   getSystemSettings,
   updateSystemSettings,
 } from '../services/settings';
@@ -45,13 +42,6 @@ interface CompanySettings {
   accountNumber: string;
   ifscCode: string;
   upiId: string;
-}
-
-interface InvoiceSettings {
-  prefix: string;
-  numberFormat: string;
-  defaultGstMode: 'IGST' | 'CGST+SGST' | 'None';
-  footerText: string;
 }
 
 interface SystemSettings {
@@ -87,13 +77,6 @@ const INITIAL_COMPANY: CompanySettings = {
   upiId: '',
 };
 
-const INITIAL_INVOICE: InvoiceSettings = {
-  prefix: 'JS',
-  numberFormat: 'JS/YY-YY/####',
-  defaultGstMode: 'CGST+SGST',
-  footerText: 'Thank you for your business. Goods once sold will not be taken back. Subject to Surat jurisdiction.',
-};
-
 const INITIAL_SYSTEM: SystemSettings = {
   theme: 'dark',
   currency: 'INR',
@@ -124,7 +107,7 @@ const roleColors: Record<UserRole, string> = {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-type SettingsTab = 'company' | 'invoice' | 'accounts' | 'users';
+type SettingsTab = 'company' | 'accounts' | 'users';
 
 export const SettingsModule: React.FC = () => {
   const [tab, setTab] = useState<SettingsTab>('company');
@@ -155,7 +138,7 @@ export const SettingsModule: React.FC = () => {
         gst_number: activeCompany.gstin,
         pan: activeCompany.pan,
         logo_url: activeCompany.logoUrl,
-        invoice_prefix: invoice.prefix,
+        invoice_prefix: 'JS',
         phone: activeCompany.phone,
         email: activeCompany.email,
         bank_name: activeCompany.bankName,
@@ -179,33 +162,6 @@ export const SettingsModule: React.FC = () => {
           ? error.message
           : JSON.stringify(error);
       alert("Failed to save company settings: " + msg);
-    }
-  };
-
-  // Invoice state
-  const [invoice, setInvoice] = useState<InvoiceSettings>({ ...INITIAL_INVOICE });
-  const [invoiceSaved, setInvoiceSaved] = useState(false);
-  const saveInvoice = async () => {
-    try {
-      await updateInvoiceSettings({
-        prefix: invoice.prefix,
-        number_format: invoice.numberFormat,
-        default_gst_mode: invoice.defaultGstMode,
-        footer_text: invoice.footerText,
-      });
-
-      setInvoiceSaved(true);
-
-      setTimeout(() => {
-        setInvoiceSaved(false);
-      }, 2000);
-    } catch (error) {
-      console.error("Failed to save invoice settings:", error);
-      alert(
-        error instanceof Error
-          ? error.message
-          : "Failed to save invoice settings."
-      );
     }
   };
 
@@ -476,7 +432,6 @@ export const SettingsModule: React.FC = () => {
 
   const TABS: { id: SettingsTab; label: string; icon: React.ElementType }[] = [
     { id: 'company', label: 'Company', icon: Building2 },
-    { id: 'invoice', label: 'Invoice', icon: Receipt },
     { id: 'accounts', label: 'Accounts', icon: IndianRupee },
     { id: 'users', label: 'User Management', icon: Users },
   ];
@@ -491,12 +446,10 @@ export const SettingsModule: React.FC = () => {
         const [
           companyGstData,
           companyNonGstData,
-          invoiceData,
           systemData,
         ] = await Promise.all([
           getCompanySettings(1),
           getCompanySettings(2),
-          getInvoiceSettings(),
           getSystemSettings(),
         ]);
 
@@ -537,17 +490,6 @@ export const SettingsModule: React.FC = () => {
         });
 
         // -----------------------------------------
-        // Invoice
-        // -----------------------------------------
-
-        setInvoice({
-          prefix: invoiceData.prefix,
-          numberFormat: invoiceData.number_format,
-          defaultGstMode: invoiceData.default_gst_mode,
-          footerText: invoiceData.footer_text,
-        });
-
-        // -----------------------------------------
         // System
         // -----------------------------------------
 
@@ -580,7 +522,7 @@ export const SettingsModule: React.FC = () => {
         <Settings className="w-5 h-5 text-blue-500" />
         <div>
           <h2 className="text-xl font-serif italic text-white">Settings</h2>
-          <p className="text-[11px] text-[#d1d1d1]/50 mt-0.5">Company · Invoice · User Management</p>
+          <p className="text-[11px] text-[#d1d1d1]/50 mt-0.5">Company · Accounts · User Management</p>
         </div>
       </div>
 
@@ -704,55 +646,6 @@ export const SettingsModule: React.FC = () => {
                 className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider shadow-lg transition ${companySaved ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20'}`}>
                 <Save className="w-3.5 h-3.5" />
                 {companySaved ? 'Saved!' : 'Save Account Settings'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ══════════════════════════════════════
-            INVOICE SETTINGS
-        ══════════════════════════════════════ */}
-        {tab === 'invoice' && (
-          <div className="p-6 space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <Field label="Invoice Prefix" required>
-                <input value={invoice.prefix} onChange={e => setInvoice({ ...invoice, prefix: e.target.value })}
-                  className={inputCls} placeholder="e.g. JS, INV, GST" />
-              </Field>
-              <Field label="Invoice Number Format">
-                <input value={invoice.numberFormat} onChange={e => setInvoice({ ...invoice, numberFormat: e.target.value })}
-                  className={inputCls} placeholder="JS/YY-YY/####" />
-                <p className="mt-1 text-[10px] text-[#d1d1d1]/30">Use #### for auto-incrementing number, YY for year</p>
-              </Field>
-              <Field label="Default GST Mode" required>
-                <select value={invoice.defaultGstMode} onChange={e => setInvoice({ ...invoice, defaultGstMode: e.target.value as InvoiceSettings['defaultGstMode'] })} className={selectCls}>
-                  <option value="CGST+SGST">CGST + SGST (Intra-state)</option>
-                  <option value="IGST">IGST (Inter-state)</option>
-                  <option value="None">None (Non-GST)</option>
-                </select>
-              </Field>
-              <div className="md:col-span-2">
-                <Field label="Invoice Footer Text">
-                  <textarea value={invoice.footerText} onChange={e => setInvoice({ ...invoice, footerText: e.target.value })}
-                    rows={3} className={`${inputCls} resize-none`}
-                    placeholder="Terms & conditions, bank details, thank you message..." />
-                </Field>
-              </div>
-            </div>
-
-            {/* Live Preview */}
-            <div className="bg-[#0f0f0f] border border-white/10 rounded-xl p-4 space-y-1">
-              <p className="text-[10px] text-blue-500 uppercase tracking-widest font-bold mb-2">Live Preview</p>
-              <p className="text-xs text-[#d1d1d1]/70">Invoice Number: <span className="text-white font-bold">{invoice.numberFormat.replace('####', '0001').replace(/YY-YY/g, '24-25')}</span></p>
-              <p className="text-xs text-[#d1d1d1]/70">GST Mode: <span className="text-white font-bold">{invoice.defaultGstMode}</span></p>
-              <p className="text-xs text-[#d1d1d1]/70 mt-2 italic border-t border-white/5 pt-2">"{invoice.footerText}"</p>
-            </div>
-
-            <div className="flex justify-end">
-              <button onClick={saveInvoice}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider shadow-lg transition ${invoiceSaved ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20'}`}>
-                <Save className="w-3.5 h-3.5" />
-                {invoiceSaved ? 'Saved!' : 'Save Invoice Settings'}
               </button>
             </div>
           </div>
